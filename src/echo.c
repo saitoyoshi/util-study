@@ -1,27 +1,10 @@
-/* echo.c, derived from code echo.c in Bash.
-   Copyright (C) 1987-2020 Free Software Foundation, Inc.
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
-
 #include <config.h>
 #include <stdio.h>
 #include <assert.h>
 #include <sys/types.h>
 #include "system.h"
 
-/* The official name of this program (e.g., no 'g' prefix).  */
-#define PROGRAM_NAME "echo"
+#define PROGRAM_NAME "my_echo"
 
 #define AUTHORS \
   proper_name ("Brian Fox"), \
@@ -35,10 +18,9 @@ enum { DEFAULT_ECHO_TO_XPG = false };
 void
 usage (int status)
 {
-  /* STATUS should always be EXIT_SUCCESS (unlike in most other
-     utilities which would call emit_try_help otherwise).  */
+     /* STATUS は常に EXIT_SUCCESS でなければなりません（他の多くのユーティリティでは emit_try_help を呼び出すため）。 */
+    //  _()関数は文字列を国際化対応してだす。gettext.h
   assert (status == EXIT_SUCCESS);
-
   printf (_("\
 Usage: %s [SHORT-OPTION]... [STRING]...\n\
   or:  %s LONG-OPTION\n\
@@ -107,6 +89,8 @@ hextobin (unsigned char c)
 int
 main (int argc, char **argv)
 {
+  // printf("%d\n", !!0);
+  // return 3;
   bool display_return = true;
   bool posixly_correct = getenv ("POSIXLY_CORRECT");
   bool allow_options =
