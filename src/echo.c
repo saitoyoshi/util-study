@@ -1,6 +1,6 @@
-#include <assert.h>
 #include <config.h>  //configureで生成される
 #include <stdio.h>
+#include <assert.h>
 #include <sys/types.h>
 
 #include "system.h"
