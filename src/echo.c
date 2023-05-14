@@ -76,7 +76,7 @@ If -e is in effect, the following sequences are recognized:\n\
 
 // 「引数cを16進数の文字から整数に変換します。」16進数を１０進数に変換
 static int
-hextobin(unsigned char c) {
+hex2dec(unsigned char c) {
     switch (c) {
         default:
             return c - '0';
@@ -240,11 +240,11 @@ just_echo:
                             }
                             s++;
                             // ヘルパー関数としては、hextobin()があり、これは名前に反して十六進数を十進数に変換する機能。バックスラッシュエスケープ文字の解釈に使う
-                            c = hextobin(ch);
+                            c = hex2dec(ch);
                             ch = *s;
                             if (isxdigit(ch)) {
                                 s++;
-                                c = c * 16 + hextobin(ch);
+                                c = c * 16 + hex2dec(ch);
                             }
                         } break;
                             // 8進数エスケープシーケンス。最大3桁の8進数を解釈し、対応する文字に変換します。
