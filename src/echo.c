@@ -122,8 +122,9 @@ int main(int argc, char **argv) {
 
     // 短縮形のオプションを受け入れないために、parse_long_options を使用せずに直接オプションを解析します。echo --help or echo --version が動くようにしている
     if (allow_options && argc == 2) {
-        if (STREQ(argv[1], "--help"))
+        if (STREQ(argv[1], "--help")) {
             usage(EXIT_SUCCESS);
+        }
 
         if (STREQ(argv[1], "--version")) {
             version_etc(stdout, PROGRAM_NAME, PACKAGE_NAME, Version, AUTHORS,
@@ -135,7 +136,7 @@ int main(int argc, char **argv) {
     --argc;
     ++argv;
     // getoptを使わずに直接入力をパースする
-    if (allow_options)
+    if (allow_options) {
         while (argc > 0 && *argv[0] == '-') {
             // オプションの処理ループでは、argv[0] からハイフンを除いた文字列を temp に格納し、その中の文字を順に検査します。
             char const *temp = argv[0] + 1;
@@ -145,7 +146,7 @@ int main(int argc, char **argv) {
            オプションが実際に有効かどうかを確認します。有効でない場合は、
            文字列を単にエコーします。 */
 
-            for (i = 0; temp[i]; i++)
+            for (i = 0; temp[i]; i++) {
                 switch (temp[i]) {
                         // -以降の一文字ずつを操作してチェックしている
                         // もし、検査中の文字が 'e'、'E'、'n' のいずれかでない場合、just_echo にジャンプしてオプションではなく単に文字列をエコーする処理に移ります。
@@ -156,14 +157,16 @@ int main(int argc, char **argv) {
                     default:
                         goto just_echo;
                 }
+            }
             // もし、検査中の文字が存在せず、つまりオプションがない場合、just_echo にジャンプしてオプション処理をスキップし、単に文字列をエコーする処理に移ります。
-            if (i == 0)
+            if (i == 0) {
                 goto just_echo;
+            }
 
             /* TEMP 内のすべてのオプションが ECHO の有効なオプションです。
            それらを処理します。 */
             //  tempには-以降の文字列が入っている
-            while (*temp)
+            while (*temp) {
                 switch (*temp++) {
                     case 'e':
                         // バックスラッシュによるエスケープを解釈する
@@ -180,10 +183,12 @@ int main(int argc, char **argv) {
                         display_return = false;
                         break;
                 }
+            }
             // オプションの処理が終了したら、argc をデクリメントし、argv をインクリメントして、次の引数に進みます。
             argc--;
             argv++;
         }
+    }
 
 just_echo:
 
@@ -193,12 +198,11 @@ just_echo:
             char const *s = argv[0];
             unsigned char c;
 
-            while ((c = *s++))
+            while ((c = *s++)) {
             // 文字列argv[0]の各文字を処理
-            {
-                if (c == '\\' && *s)
+                if (c == '\\' && *s) {
                 // 文字がバックスラッシュであり、かつ次の文字が存在する場合にエスケープシーケンスとして扱う（\を表すためには'\\'としなければならない）
-                {
+
                     // エスケープシーケンスの種類に応じて、対応する特殊文字や制御文字に変換されます
                     switch (c = *s++) {
                         case 'a':
@@ -230,9 +234,10 @@ just_echo:
                         case 'x': {
                             // 16進数エスケープシーケンス。次の2つの文字を16進数として解釈し、対応する文字に変換します。
                             unsigned char ch = *s;
-                            if (!isxdigit(ch))
+                            if (!isxdigit(ch)) {
                                 // 文字列sの最初の文字が16進数の文字でなければ
                                 goto not_an_escape;  // ex echo -e '\xp'これだと単なる\xpとする
+                            }
                             s++;
                             // ヘルパー関数としては、hextobin()があり、これは名前に反して十六進数を十進数に変換する機能。バックスラッシュエスケープ文字の解釈に使う
                             c = hextobin(ch);
@@ -245,8 +250,9 @@ just_echo:
                             // 8進数エスケープシーケンス。最大3桁の8進数を解釈し、対応する文字に変換します。
                         case '0':
                             c = 0;
-                            if (!('0' <= *s && *s <= '7'))
+                            if (!('0' <= *s && *s <= '7')) {
                                 break;  // 次の文字が8進数として適正でなければ、breakする
+                            }
                             c = *s++;   // そうでなければ、sを一文字勧めつつ、今刺している文字をcにいれる。ここではbreakせずにフォールスルーする
                             FALLTHROUGH;
                         case '1':
@@ -256,11 +262,16 @@ just_echo:
                         case '5':
                         case '6':
                         case '7':
-                            c -= '0';                    // この計算をすると8進数の値を取得できるex'1'-'0': 49-48
-                            if ('0' <= *s && *s <= '7')  // 8進数は3桁なので、3文字進める
+                            c -= '0';
+                            // 8進数は3桁なので、3文字進める
+                            //  この計算をすると8進数の値を取得できるex'1'-'0': 49-48
+                            if ('0' <= *s && *s <= '7')  {
                                 c = c * 8 + (*s++ - '0');
-                            if ('0' <= *s && *s <= '7')
+                            }
+
+                            if ('0' <= *s && *s <= '7') {
                                 c = c * 8 + (*s++ - '0');
+                            }
                             break;
                             // バックスラッシュ文字自体を出力
                         case '\\':
@@ -278,9 +289,10 @@ just_echo:
             // 次のコマンドライン引数へと処理をすすめる
             argc--;
             argv++;
-            if (argc > 0)
+            if (argc > 0) {
                 // まだ次に引数があるならスペースを出力しておく
                 putchar(' ');
+            }
         }
     } else {
         // 単に引数をそのまま出力。
@@ -288,13 +300,15 @@ just_echo:
             fputs(argv[0], stdout);
             argc--;
             argv++;
-            if (argc > 0)
+            if (argc > 0) {
                 putchar(' ');
+            }
         }
     }
 
     // 改行文字を出力してプログラムを正常に終了する
-    if (display_return)
+    if (display_return) {
         putchar('\n');
+    }
     return EXIT_SUCCESS;
 }
