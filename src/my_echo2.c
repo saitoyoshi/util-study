@@ -73,12 +73,11 @@ int main(int argc, char **argv) {
     // 短縮形のオプションを受け入れないために、parse_long_options を使用せずに直接オプションを解析します。echo --help or echo --version が動くようにしている
     if (allow_options && argc == 2) {
         if (STREQ(argv[1], "--help")) {
-            usage(EXIT_SUCCESS, argv[0]);
+            usage(0, argv[0]);
         }
-
         if (STREQ(argv[1], "--version")) {
-            puts("my echo version 1.0.0");
-            return EXIT_SUCCESS;
+            puts("v1.0.0");
+            return 0;
         }
     }
     // プログラム名を除いたコマンドライン引数に対して処理を行うための準備です。パスパラメタの左シフト的なことをしている
