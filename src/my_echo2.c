@@ -86,53 +86,32 @@ int main(int argc, char **argv) {
     // getoptを使わずに直接入力をパースする
     if (allow_options) {
         while (argc > 0 && *argv[0] == '-') {
-            // オプションの処理ループでは、argv[0] からハイフンを除いた文字列を temp に格納し、その中の文字を順に検査します。
             char const *temp = argv[0] + 1;
             size_t i;
-
-            /* オプションを処理しているように見える場合は、指定された
-           オプションが実際に有効かどうかを確認します。有効でない場合は、
-           文字列を単にエコーします。 */
-
             for (i = 0; temp[i]; i++) {
                 switch (temp[i]) {
-                        // -以降の一文字ずつを操作してチェックしている
-                        // もし、検査中の文字が 'e'、'E'、'n' のいずれかでない場合、just_echo にジャンプしてオプションではなく単に文字列をエコーする処理に移ります。
-                    case 'e':
-                    case 'E':
-                    case 'n':
+                    case 'e': case 'E': case 'n':
                         break;
                     default:
                         goto just_echo;
                 }
             }
-            // もし、検査中の文字が存在せず、つまりオプションがない場合、just_echo にジャンプしてオプション処理をスキップし、単に文字列をエコーする処理に移ります。
             if (i == 0) {
                 goto just_echo;
             }
-
-            /* TEMP 内のすべてのオプションが ECHO の有効なオプションです。
-           それらを処理します。 */
-            //  tempには-以降の文字列が入っている
             while (*temp) {
                 switch (*temp++) {
                     case 'e':
-                        // バックスラッシュによるエスケープを解釈する
                         do_v9 = true;
                         break;
-
                     case 'E':
-                        // バックスラッシュによるエスケープを解釈しない
                         do_v9 = false;
                         break;
-
                     case 'n':
-                        // 最後に改行を出力しない
                         display_return = false;
                         break;
                 }
             }
-            // オプションの処理が終了したら、argc をデクリメントし、argv をインクリメントして、次の引数に進みます。
             argc--;
             argv++;
         }
