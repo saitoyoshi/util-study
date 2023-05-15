@@ -120,106 +120,44 @@ int main(int argc, char **argv) {
 just_echo:
 
     if (do_v9 || posixly_correct) {
-        // V9の振る舞いや POSIXLY_CORRECT モードが有効な場合は、エスケープシーケンスを処理して特殊文字に変換しながら出力します
         while (argc > 0) {
             char const *s = argv[0];
             unsigned char c;
 
             while ((c = *s++)) {
-            // 文字列argv[0]の各文字を処理
                 if (c == '\\' && *s) {
-                // 文字がバックスラッシュであり、かつ次の文字が存在する場合にエスケープシーケンスとして扱う（\を表すためには'\\'としなければならない）
-
-                    // エスケープシーケンスの種類に応じて、対応する特殊文字や制御文字に変換されます
                     switch (c = *s++) {
-                        case 'a':
-                            c = '\a';
-                            break;
-                        case 'b':
-                            c = '\b';
-                            break;
                         case 'c':
-                            return EXIT_SUCCESS;
-                        case 'e':
-                            c = '\x1B';
-                            break;
-                        case 'f':
-                            c = '\f';
-                            break;
+                            return 7;
                         case 'n':
                             c = '\n';
-                            break;
-                        case 'r':
-                            c = '\r';
                             break;
                         case 't':
                             c = '\t';
                             break;
-                        case 'v':
-                            c = '\v';
-                            break;
                         case 'x': {
-                            // 16進数エスケープシーケンス。次の2つの文字を16進数として解釈し、対応する文字に変換します。
                             unsigned char ch = *s;
                             if (!isxdigit(ch)) {
-                                // 文字列sの最初の文字が16進数の文字でなければ
-                                goto not_an_escape;  // ex echo -e '\xp'これだと単なる\xpとする
+                                goto not_an_escape;
                             }
                             s++;
-                            // ヘルパー関数としては、hextobin()があり、これは名前に反して十六進数を十進数に変換する機能。バックスラッシュエスケープ文字の解釈に使う
                             c = hex2dec(ch);
                             ch = *s;
                             if (isxdigit(ch)) {
                                 s++;
                                 c = c * 16 + hex2dec(ch);
                             }
-                        } break;
-                            // 8進数エスケープシーケンス。最大3桁の8進数を解釈し、対応する文字に変換します。
-                        case '0':
-                            c = 0;
-                            if (!('0' <= *s && *s <= '7')) {
-                                break;  // 次の文字が8進数として適正でなければ、breakする
-                            }
-                            c = *s++;   // そうでなければ、sを一文字勧めつつ、今刺している文字をcにいれる。ここではbreakせずにフォールスルーする
-                            // FALLTHROUGH;
-                        case '1':
-                        case '2':
-                        case '3':
-                        case '4':
-                        case '5':
-                        case '6':
-                        case '7':
-                            c -= '0';
-                            // 8進数は3桁なので、3文字進める
-                            //  この計算をすると8進数の値を取得できるex'1'-'0': 49-48
-                            if ('0' <= *s && *s <= '7')  {
-                                c = c * 8 + (*s++ - '0');
-                            }
-
-                            if ('0' <= *s && *s <= '7') {
-                                c = c * 8 + (*s++ - '0');
-                            }
-                            break;
-                            // バックスラッシュ文字自体を出力
-                        case '\\':
-                            break;
+                        }  break;
 
                         not_an_escape:
                         default:
                             putchar('\\');
-                            break;
                     }
                 }
-                // エスケープ処理が終了すると、変換された文字を putchar() を使って出力します。
                 putchar(c);
             }
-            // 次のコマンドライン引数へと処理をすすめる
             argc--;
             argv++;
-            if (argc > 0) {
-                // まだ次に引数があるならスペースを出力しておく
-                putchar(' ');
-            }
         }
     } else {
         // 単に引数をそのまま出力。
