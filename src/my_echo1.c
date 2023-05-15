@@ -1,15 +1,15 @@
-#include <config.h>  //configureで生成される
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include <sys/types.h>
-
-#include "system.h" //システム依存のマクロ、変数、有用な非標準関数を定義.可能な限り多くのアーキテクチャでcoreutilsをビルドできるように、「翻訳」を提供
-
+#include <ctype.h>
+#include <stdbool.h>
 #define PROGRAM_NAME "my_echo"
-
+#define STREQ(a, b) (strcmp (a, b) == 0)
 #define AUTHORS \
     proper_name("yoshi")
-
+#define EXIT_SUCCESS 0
 // もし真ならば、デフォルトでバックスラッシュエスケープを解釈します。
 //  X/Open Portability Guideという移植性を向上させるためのガイドラインで、デフォルトがfalseなのでXPG仕様に従わずバックスラッシュエスケープはデフォルトで解釈されません
 #ifndef DEFAULT_ECHO_TO_XPG
@@ -18,40 +18,38 @@ enum {
 };
 #endif
 
-void usage(int status) {
+void usage(int status, char *program_name) {
     /* STATUS は常に EXIT_SUCCESS でなければなりません（他の多くのユーティリティでは emit_try_help を呼び出すため）。emit_try_help()は失敗した出力のあとにマンページへのリンクを出す */
     //  _()関数は文字列を国際化対応してだす。gettext.h
     assert(status == EXIT_SUCCESS);
-    printf(_("\
+    printf("\
 Usage: %s [SHORT-OPTION]... [STRING]...\n\
   or:  %s LONG-OPTION\n\
-"),
+",
            program_name, program_name);
-    fputs(_("\
+    fputs("\
 Echo the STRING(s) to standard output.\n\
 \n\
   -n             do not output the trailing newline\n\
-"),
+",
           stdout);
     // N_はNは翻訳対象文字列のマーク _は文字列を翻訳するマクロ
-    fputs(_(DEFAULT_ECHO_TO_XPG
-                ? N_("\
+    fputs(DEFAULT_ECHO_TO_XPG
+                ? "\
   -e             enable interpretation of backslash escapes (default)\n\
-  -E             disable interpretation of backslash escapes\n")
-                : N_("\
+  -E             disable interpretation of backslash escapes\n"
+                : "\
   -e             enable interpretation of backslash escapes\n\
-  -E             disable interpretation of backslash escapes (default)\n")),
+  -E             disable interpretation of backslash escapes (default)\n",
           // デフォルトは-Eの挙動ですよ。
           stdout);
-    fputs(HELP_OPTION_DESCRIPTION, stdout);
-    fputs(VERSION_OPTION_DESCRIPTION, stdout);
-    fputs(_("\
+    fputs("\
 \n\
 If -e is in effect, the following sequences are recognized:\n\
 \n\
-"),
+",
           stdout);
-    fputs(_("\
+    fputs("\
   \\\\      backslash\n\
   \\a      alert (BEL)\n\
   \\b      backspace\n\
@@ -62,15 +60,13 @@ If -e is in effect, the following sequences are recognized:\n\
   \\r      carriage return\n\
   \\t      horizontal tab\n\
   \\v      vertical tab\n\
-"),
+",
           stdout);
-    fputs(_("\
+    fputs("\
   \\0NNN   byte with octal value NNN (1 to 3 digits)\n\
   \\xHH    byte with hexadecimal value HH (1 to 2 digits)\n\
-"),
+",
           stdout);
-    printf(USAGE_BUILTIN_WARNING, PROGRAM_NAME);
-    emit_ancillary_info(PROGRAM_NAME);  // 共通のヘルプテキストを出す
     exit(status);
 }
 
@@ -112,23 +108,15 @@ int main(int argc, char **argv) {
     // System Vマシン上での既存のシステムシェルスクリプトの互換性を保つための処理を行っている。このフラグはバックスラッシュエスケープ文字の処理に使用されます。このフラグが設定されている場合、echoはバックスラッシュエスケープ文字を解釈する
     bool do_v9 = DEFAULT_ECHO_TO_XPG;  // 通常がここでfalseが代入される
 
-    initialize_main(&argc, &argv);       // VMSというOSのための特別な関数,組み込みのワイルドカード展開を強制
-    set_program_name(argv[0]);           // basename argv[0]のような形でメモリに保存する。argv[0] のベースネーム（ファイル名部分）を取得して、program_name という変数に格納します。
-    setlocale(LC_ALL, "");               // setlocale(LC_ALL, ""); の呼び出しは、現在のロケールをプログラムが実行される環境のデフォルトのロケールに設定します。LC_ALL は、ロケールカテゴリを指定するための定数であり、すべてのロケールカテゴリに対して設定を行うことを示します。
-    bindtextdomain(PACKAGE, LOCALEDIR);  // フリーソフトウェアのgettext.hを使用して、国際化機能のディレクトリを設定します。
-    textdomain(PACKAGE);                 // 指定されたテキストドメインを有効にし、プログラム内でのメッセージのローカライズ（翻訳）を可能にします。引数として渡される PACKAGE は、テキストドメインを識別するためのラベルや識別子です。通常、PACKAGE にはソフトウェアパッケージの名前が指定
-
-    atexit(close_stdout);  // プログラムの終了時に自動的に標準出力を閉じる処理を登録するための関数呼び出しです。これにより、プログラムが正常または異常な終了時に標準出力を確実に閉じることができます。
 
     // 短縮形のオプションを受け入れないために、parse_long_options を使用せずに直接オプションを解析します。echo --help or echo --version が動くようにしている
     if (allow_options && argc == 2) {
         if (STREQ(argv[1], "--help")) {
-            usage(EXIT_SUCCESS);
+            usage(EXIT_SUCCESS, argv[0]);
         }
 
         if (STREQ(argv[1], "--version")) {
-            version_etc(stdout, PROGRAM_NAME, PACKAGE_NAME, Version, AUTHORS,
-                        (char *)NULL);
+            puts("my echo version 1.0.0");
             return EXIT_SUCCESS;
         }
     }
@@ -254,7 +242,7 @@ just_echo:
                                 break;  // 次の文字が8進数として適正でなければ、breakする
                             }
                             c = *s++;   // そうでなければ、sを一文字勧めつつ、今刺している文字をcにいれる。ここではbreakせずにフォールスルーする
-                            FALLTHROUGH;
+                            // FALLTHROUGH;
                         case '1':
                         case '2':
                         case '3':
