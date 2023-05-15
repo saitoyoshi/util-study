@@ -148,10 +148,28 @@ just_echo:
                                 c = c * 16 + hex2dec(ch);
                             }
                         }  break;
-
+                        case '0':
+                            c = 0;
+                            if (!('0' <= *s && *s <= '7')) {
+                                break;
+                            }
+                            c = *s++;
+                            // fallthrough
+                        case '1': case '2': case '3': case '4': case '5': case '6': case '7':
+                            c -= '0';//1~7の数値
+                            if ('0' <= *s && *s <= '7') {
+                                c = c * 8 + (*s++ - '0');
+                            }
+                            if ('0' <= *s && *s <= '7') {
+                                c = c * 8 + (*s++ - '0');
+                            }
+                            break;
+                        case '\\':
+                            break;
                         not_an_escape:
                         default:
                             putchar('\\');
+                            break;
                     }
                 }
                 putchar(c);
@@ -160,7 +178,6 @@ just_echo:
             argv++;
         }
     } else {
-        // 単に引数をそのまま出力。
         while (argc > 0) {
             fputs(argv[0], stdout);
             argc--;
@@ -169,9 +186,8 @@ just_echo:
                 putchar(' ');
             }
         }
-    }
 
-    // 改行文字を出力してプログラムを正常に終了する
+    }
     if (display_return) {
         putchar('\n');
     }
