@@ -484,65 +484,65 @@ int main(int argc, char **argv) {
             {GETOPT_VERSION_OPTION_DECL},
             {NULL, 0, NULL, 0}};
 
-    initialize_main(&argc, &argv);
-    set_program_name(argv[0]);
-    setlocale(LC_ALL, "");
-    bindtextdomain(PACKAGE, LOCALEDIR);
-    textdomain(PACKAGE);
+    initialize_main(&argc, &argv);//ワイルドカード展開に必要
+    set_program_name(argv[0]);//program_nameにargv[0]を格納する
+    setlocale(LC_ALL, "");//ロケール設定
+    bindtextdomain(PACKAGE, LOCALEDIR);//翻訳対応
+    textdomain(PACKAGE);//翻訳対応
 
     /* Arrange to close stdout if we exit via the
        case_GETOPT_HELP_CHAR or case_GETOPT_VERSION_CHAR code.
        Normally STDOUT_FILENO is used rather than stdout, so
        close_stdout does nothing.  */
-    atexit(close_stdout);
+    atexit(close_stdout);//きちんと標準出力が閉じられるようにする
 
     /* Parse command line options.  */
 
     while ((c = getopt_long(argc, argv, "benstuvAET", long_options, NULL)) != -1) {
         switch (c) {
-            case 'b':
+            case 'b'://空行以外に行番号を付ける。-n より優先される
                 number = true;
                 number_nonblank = true;
                 break;
 
-            case 'e':
-                show_ends = true;
-                show_nonprinting = true;
+            case 'e'://-vE と同じ
+                show_ends = true;//-E
+                show_nonprinting = true;//-v
                 break;
 
-            case 'n':
+            case 'n'://全ての行に行番号を付ける
                 number = true;
                 break;
 
-            case 's':
+            case 's'://連続した空行の出力を行わない
                 squeeze_blank = true;
                 break;
 
-            case 't':
-                show_tabs = true;
-                show_nonprinting = true;
+            case 't'://-vT と同じ
+                show_tabs = true;//-T
+                show_nonprinting = true;//-v
                 break;
 
-            case 'u':
+            case 'u'://無視されるオプション
                 /* We provide the -u feature unconditionally.  */
                 break;
 
-            case 'v':
+            case 'v'://^ や M- 表記を使用する (LFD と TAB は除く)
                 show_nonprinting = true;
                 break;
 
-            case 'A':
-                show_nonprinting = true;
-                show_ends = true;
-                show_tabs = true;
+            case 'A'://-vET と同じ
+                show_nonprinting = true;//-v
+                show_ends = true;//-E
+                show_tabs = true;//-T
                 break;
 
-            case 'E':
-                show_ends = true;
+            case 'E'://行の最後に $ を付ける
+                show_ends = true;//-E
                 break;
 
-            case 'T':
-                show_tabs = true;
+            case 'T'://TAB 文字を ^I で表示
+                show_tabs = true;//-T
                 break;
 
                 case_GETOPT_HELP_CHAR;
