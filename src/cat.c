@@ -473,13 +473,18 @@ int main(int argc, char **argv) {
 
     static struct option const long_options[] =
         {
-            {"number-nonblank", no_argument, NULL, 'b'},
-            {"number", no_argument, NULL, 'n'},
+            {"number-nonblank", no_argument, NULL, 'b'},            {"number", no_argument, NULL, 'n'},//
+            //空行以外に行番号をつける
             {"squeeze-blank", no_argument, NULL, 's'},
+            //連続した空行の出力を行わない
             {"show-nonprinting", no_argument, NULL, 'v'},
+            //^ や M- 表記を使用する (LFD と TAB は除く)
             {"show-ends", no_argument, NULL, 'E'},
+            //行の最後に $ を付ける
             {"show-tabs", no_argument, NULL, 'T'},
+            //TAB 文字を ^I で表示
             {"show-all", no_argument, NULL, 'A'},
+            //-vET
             {GETOPT_HELP_OPTION_DECL},
             {GETOPT_VERSION_OPTION_DECL},
             {NULL, 0, NULL, 0}};
