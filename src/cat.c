@@ -66,17 +66,13 @@ usage (int status)
   else
     {
       printf (_("\
-Usage: %s [OPTION]... [FILE]...\n\
-"),
+Usage: %s [OPTION]... [FILE]...\n"),
               program_name);
-      fputs (_("\
-Concatenate FILE(s) to standard output.\n\
-"), stdout);
+      fputs (_("Concatenate FILE(s) to standard output.\n"), stdout);
 
       emit_stdin_note ();
 
-      fputs (_("\
-\n\
+      fputs (_("\n\
   -A, --show-all           equivalent to -vET\n\
   -b, --number-nonblank    number nonempty output lines, overrides -n\n\
   -e                       equivalent to -vE\n\
@@ -92,8 +88,7 @@ Concatenate FILE(s) to standard output.\n\
 "), stdout);
       fputs (HELP_OPTION_DESCRIPTION, stdout);
       fputs (VERSION_OPTION_DESCRIPTION, stdout);
-      printf (_("\
-\n\
+      printf (_("\n\
 Examples:\n\
   %s f - g  Output f's contents, then standard input, then g's contents.\n\
   %s        Copy standard input to standard output.\n\
