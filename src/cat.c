@@ -28,10 +28,10 @@
     proper_name("yoshi")
 
 /* Name of input file.  May be "-".  */
-static char const *infile;
+static char const *infile;//入力ファイル名を指定するために定義
 
 /* Descriptor on which input file is open.  */
-static int input_desc;
+static int input_desc;//ファイルディスクリプタを保持するために定義
 
 /* Buffer for line numbers.
    An 11 digit counter may overflow within an hour on a P2/466,
@@ -41,7 +41,7 @@ static char line_buf[LINE_COUNTER_BUF_LEN] =
     {
         ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
         ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', '0',
-        '\t', '\0'};
+        '\t', '\0'};//行数を管理するため
 
 /* Position in 'line_buf' where printing starts.  This will not change
    unless the number of lines is larger than 999999.  */
@@ -54,7 +54,7 @@ static char *line_num_start = line_buf + LINE_COUNTER_BUF_LEN - 3;
 static char *line_num_end = line_buf + LINE_COUNTER_BUF_LEN - 3;
 
 /* Preserves the 'cat' function's local 'newlines' between invocations.  */
-static int newlines2 = 0;
+static int newlines2 = 0;/* 'cat'関数のローカルな'改行'を呼び出しの間に保持する。 */
 
 void usage(int status) {
     if (status != EXIT_SUCCESS)
@@ -165,7 +165,8 @@ static bool simple_cat(
    Pending is defined to be the *BPOUT - OUTBUF bytes starting at OUTBUF.
    Then set *BPOUT to OUTPUT if it's not already that value.  */
 
-static inline void
+static inline void //保留中のデータをすべて書き込む
+//外部の非標準ヘルパー
 write_pending(char *outbuf, char **bpout) {
     size_t n_write = *bpout - outbuf;
     if (0 < n_write) {
@@ -181,8 +182,13 @@ write_pending(char *outbuf, char **bpout) {
 
    A newline character is always put at the end of the buffer, to make
    an explicit test for buffer end unnecessary.  */
+/* INPUT_DESC の後ろにあるファイルを OUTPUT_DESC の後ろにあるファイルに取り込む。
+   成功すればtrueを返す。
+   u以上のオプションが指定された場合に呼び出される。
 
-static bool
+   バッファの終わりを明示的に調べる必要がないように、バッファの終わりには常に改行文字が置かれる。
+   バッファの終了を明示的にテストする必要がないためです。 */
+static bool //I/Oコピーのためのすべての機能を実装している
 cat(
     /* Pointer to the beginning of the input buffer.  */
     char *inbuf,
@@ -203,6 +209,11 @@ cat(
     bool number_nonblank,
     bool show_ends,
     bool squeeze_blank) {
+      // cat()とsimple_cat()の比較
+// 入力がそのまま出力にコピーされるのであれば、simple_cat()が適しています。
+// しかし、追加のフォーマットが要求される場合
+// （行番号や非印刷物など）、完全なcat()関数が呼び出されます。
+// 後者は、40行に対して300行と、より複雑です。
     /* Last character read from the input buffer.  */
     unsigned char ch;
 
@@ -434,7 +445,8 @@ int main(int argc, char **argv) {
     /* Optimal size of i/o operations of input.  */
     size_t insize;
 
-    size_t page_size = getpagesize();
+    size_t page_size = getpagesize();//システムのメモリページのサイズを格納する
+    // 4kが一般的
 
     /* Pointer to the input buffer.  */
     char *inbuf;
@@ -442,23 +454,23 @@ int main(int argc, char **argv) {
     /* Pointer to the output buffer.  */
     char *outbuf;
 
-    bool ok = true;
+    bool ok = true;//実行が成功したことを示すフラグ
     int c;//解析のための次のオプション文字を保持する．
 
     /* Index in argv to processed argument.  */
     int argind;
 
     /* Device number of the output (file or whatever).  */
-    dev_t out_dev;
+    dev_t out_dev;//出力デバイス番号
 
     /* I-node number of the output.  */
-    ino_t out_ino;
+    ino_t out_ino;//出力のinode番号
 
     /* True if the output is a regular file.  */
-    bool out_isreg;
+    bool out_isreg;//出力がプレーンファイルであるかどうかのフラグ
 
     /* Nonzero if we have ever read standard input.  */
-    bool have_read_stdin = false;
+    bool have_read_stdin = false;//標準入力から読むかどうかのフラグ
 
     struct stat stat_buf;
 
@@ -469,7 +481,7 @@ int main(int argc, char **argv) {
     bool show_ends = false;
     bool show_nonprinting = false;
     bool show_tabs = false;
-    int file_open_mode = O_RDONLY;
+    int file_open_mode = O_RDONLY;//ファイルモードを保持するビットマップ．
 
     static struct option const long_options[] =
         {
@@ -550,26 +562,31 @@ int main(int argc, char **argv) {
                 show_tabs = true;//-T
                 break;
 
-                case_GETOPT_HELP_CHAR;
+                case_GETOPT_HELP_CHAR;// --helpを処理
 
                 case_GETOPT_VERSION_CHAR(PROGRAM_NAME, AUTHORS);
+                // --versionを処理
 
             default:
+            //それいがいの文字ならエラーメッセージ
                 usage(EXIT_FAILURE);
         }
     }
 
     /* Get device, i-node number, and optimal blocksize of output.  */
-
+    // 標準出力に関する情報を取得
     if (fstat(STDOUT_FILENO, &stat_buf) < 0)
+    // 失敗したら
         die(EXIT_FAILURE, errno, _("standard output"));
 
-    outsize = io_blksize(stat_buf);
+    outsize = io_blksize(stat_buf);//最適なブロックサイズを取得する
     out_dev = stat_buf.st_dev;
     out_ino = stat_buf.st_ino;
     out_isreg = S_ISREG(stat_buf.st_mode) != 0;
 
     if (!(number || show_ends || squeeze_blank)) {
+      // 行番号出力、行の最後に$、連続した空行の出力を行わない。
+      // これらすべてがfalseだと、file_open_modeを...にする
         file_open_mode |= O_BINARY;
         xset_binary_mode(STDOUT_FILENO, O_BINARY);
     }
@@ -579,20 +596,26 @@ int main(int argc, char **argv) {
     /* Main loop.  */
 
     infile = "-";
-    argind = optind;
+    argind = optind;//catする引数のargvインデックス
 
     do {
-        if (argind < argc)
+        if (argind < argc)//オプションをすべて解析したあとの、
+        // オプションではない引数がargcより小さいというのは、
+        // 最後にファイル名が指定されたということ
+        // この場合は、入力ファイルをそのファイルにする
             infile = argv[argind];
 
         if (STREQ(infile, "-")) {
+          // 標準入力から読む
             have_read_stdin = true;
             input_desc = STDIN_FILENO;
             if (file_open_mode & O_BINARY)
                 xset_binary_mode(STDIN_FILENO, O_BINARY);
         } else {
+          // ファイルから読む
             input_desc = open(infile, file_open_mode);
             if (input_desc < 0) {
+              // openできなかったときのエラー処理
                 error(0, errno, "%s", quotef(infile));
                 ok = false;
                 continue;
@@ -600,11 +623,12 @@ int main(int argc, char **argv) {
         }
 
         if (fstat(input_desc, &stat_buf) < 0) {
+          // 入力元のファイル情報を取得する
             error(0, errno, "%s", quotef(infile));
             ok = false;
             goto contin;
         }
-        insize = io_blksize(stat_buf);
+        insize = io_blksize(stat_buf);//最適なブロックサイズを取得する
 
         fdadvise(input_desc, 0, 0, FADVISE_SEQUENTIAL);
 
@@ -624,7 +648,7 @@ int main(int argc, char **argv) {
         if (!(number || show_ends || show_nonprinting || show_tabs || squeeze_blank)) {
             insize = MAX(insize, outsize);
             inbuf = xmalloc(insize + page_size - 1);
-
+// ptr_align() 返されたポインタがメモリアラインされていることを確認する
             ok &= simple_cat(ptr_align(inbuf, page_size), insize);
         } else {
             inbuf = xmalloc(insize + 1 + page_size - 1);
@@ -668,9 +692,11 @@ int main(int argc, char **argv) {
             error(0, errno, "%s", quotef(infile));
             ok = false;
         }
-    } while (++argind < argc);
+    } while (++argind < argc);//catする引数のインデックスを次にすすめて、
+    // それがargcよりも小さい間繰り返す。すなわち、すべてのファイルを処理する
 
     if (have_read_stdin && close(STDIN_FILENO) < 0)
+    // 標準入力から読んでいて、それが正常に閉じれなかった場合
         die(EXIT_FAILURE, errno, _("closing standard input"));
 
     return ok ? EXIT_SUCCESS : EXIT_FAILURE;
