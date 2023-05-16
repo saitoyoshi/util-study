@@ -114,43 +114,49 @@ next_line_num(void) {
         line_num_print--;
 }
 
-/* Plain cat.  Copies the file behind 'input_desc' to STDOUT_FILENO.
-   Return true if successful.  */
-
-static bool
-simple_cat(
+/* プレーンなcat。 input_desc' の後ろにあるファイルを
+STDOUT_FILENO にコピーする。
+成功すればtrueを返す。 */
+// 入力から出力への基本的なコピー
+static bool simple_cat(
     /* Pointer to the buffer, used by reads and writes.  */
+    // 読み書きするバッファーへのポインタを第一引数に受け取る
     char *buf,
-
     /* Number of characters preferably read or written by each read and write
        call.  */
+    //  読み込むサイズを指定
     size_t bufsize) {
     /* Actual number of characters read, and therefore written.  */
+    // 実際の読み込むバイトサイズ、したがって、書き込むバイトサイズ
     size_t n_read;
-
-    /* Loop until the end of the file.  */
-
+    // EOFまでループする
     while (true) {
         /* Read a block of input.  */
-
+        // bufsizeだけbufに読み込む、input_descから（インプットディスクリプター）
+        // safe_read()割り込みで再試行する読み込み
         n_read = safe_read(input_desc, buf, bufsize);
         if (n_read == SAFE_READ_ERROR) {
+          // 読み込みにエラーがあった
             error(0, errno, "%s", quotef(infile));
+            // エラーメッセージを標準エラーに出力し、プロセスを終了させる
             return false;
         }
-
-        /* End of this file?  */
-
-        if (n_read == 0)
-            return true;
+        if (n_read == 0) {
+          // EOFだった
+          return true;
+        }
 
         /* Write this block out.  */
-
+        // ブロックを書き出す
         {
+          // n_readは読み込めたバイト数
             /* The following is ok, since we know that 0 < n_read.  */
             size_t n = n_read;
-            if (full_write(STDOUT_FILENO, buf, n) != n)
+            if (full_write(STDOUT_FILENO, buf, n) != n) {
+            // STDOUT_FILENOが参照するファイルにbufからnバイト書き込む
+            // 失敗したらdieする
                 die(EXIT_FAILURE, errno, _("write error"));
+            }
         }
     }
 }
@@ -437,7 +443,7 @@ int main(int argc, char **argv) {
     char *outbuf;
 
     bool ok = true;
-    int c;
+    int c;//解析のための次のオプション文字を保持する．
 
     /* Index in argv to processed argument.  */
     int argind;
