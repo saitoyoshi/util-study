@@ -1,26 +1,7 @@
-/* cat -- concatenate files and print on the standard output.
-   Copyright (C) 1988-2020 Free Software Foundation, Inc.
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
-
-/* Differences from the Unix cat:
-   * Always unbuffered, -u is ignored.
-   * Usually much faster than other versions of cat, the difference
-   is especially apparent when using the -v option.
-
-   By tege@sics.se, Torbjorn Granlund, advised by rms, Richard Stallman.  */
-
+/* Unix の cat との相違点：
+   * 常にバッファなし、-uは無視されます。
+   * 通常、他のバージョンのcatよりはるかに高速で、その差は-vオプションを使用した場合に特に顕著です。
+   by tege@sics.se, Torbjorn Granlund, advised by rms, Richard Stallman.  */
 #include <config.h>
 
 #include <stdio.h>
@@ -42,11 +23,10 @@
 #include "xbinary-io.h"
 
 /* The official name of this program (e.g., no 'g' prefix).  */
-#define PROGRAM_NAME "cat"
+#define PROGRAM_NAME "my_cat"
 
 #define AUTHORS \
-  proper_name ("Torbjorn Granlund"), \
-  proper_name ("Richard M. Stallman")
+  proper_name ("yoshi")
 
 /* Name of input file.  May be "-".  */
 static char const *infile;
