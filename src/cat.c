@@ -49,15 +49,14 @@ static char line_buf[LINE_COUNTER_BUF_LEN] =
 // `line_num_print`は`line_buf`内で印刷開始位置を指示するポインタで、初期値は`line_buf + LINE_COUNTER_BUF_LEN - 8`となっています。これはバッファの末尾から8文字前を指しています。このポインタ位置から行番号が表示され、行番号が1000000（7桁）以上になると、印刷開始位置は左に移動して行きます。
 
 // したがって、このバッファとポインタは、行番号を整形して表示するためのもので、行番号の前に適切な数の空白を置くことで、行番号の表示を右揃えに保つために使われています。
-static char *line_num_print = line_buf + LINE_COUNTER_BUF_LEN - 8;
+static char *line_num_print = line_buf + LINE_COUNTER_BUF_LEN - 8;//12
 
-/* Position of the first digit in 'line_buf'.  */
-static char *line_num_start = line_buf + LINE_COUNTER_BUF_LEN - 3;
+/* 'line_buf'の1桁目の位置。 */
+static char *line_num_start = line_buf + LINE_COUNTER_BUF_LEN - 3;//17
 
-/* Position of the last digit in 'line_buf'.  */
-static char *line_num_end = line_buf + LINE_COUNTER_BUF_LEN - 3;
+/* 'line_buf'の最後の桁の位置。 */
+static char *line_num_end = line_buf + LINE_COUNTER_BUF_LEN - 3;//17
 
-/* Preserves the 'cat' function's local 'newlines' between invocations.  */
 static int newlines2 = 0;/* 'cat'関数のローカルな'改行'を呼び出しの間に保持する。 */
 
 void usage(int status) {
@@ -100,8 +99,32 @@ Examples:\n\
     exit(status);
 }
 
-/* Compute the next line number.  */
+/* 行番号を文字列で作り上げる  */
+// もちろんです、それぞれの行とそのポインタ操作について説明します。
 
+// 1. `char *endp = line_num_end;`
+//    ここでは、`endp`という新しいポインタを作成し、それを`line_num_end`が指す場所に初期化しています。`line_num_end`は行番号の最後の桁を指すので、ここでは行番号の最後の桁について操作を行います。
+
+// 2. `do {`
+//    ここでは`do-while`ループを開始しています。このループは、各桁についてチェックし、必要に応じて桁上げを行います。
+
+// 3. `if ((*endp)++ < '9')`
+//    ここでは`endp`が指す文字をインクリメントしています。そして、そのインクリメントした値が`'9'`より小さいかどうかをチェックしています。もし`'9'`より小さい場合、その桁でのキャリーオーバーは不要であるため、ループから抜け出します。
+
+// 4. `*endp-- = '0';`
+//    もし`endp`が指す文字が`'9'`だった場合（つまり、その桁でキャリーオーバーが必要な場合）、その桁を`'0'`にリセットし、左の桁（`endp`の1つ前）に移動します。
+
+// 5. `} while (endp >= line_num_start);`
+//    ここで`do-while`ループが終了します。`endp`が`line_num_start`以上である限り、ループは続きます。これは、行番号の左端に達するまでキャリーオーバーを続けるためです。
+
+// 6. `if (line_num_start > line_buf)`
+//    ここでは、行番号の左端`line_num_start`が全体のバッファ`line_buf`を越えていないかを確認しています。越えていない場合、次の行で行番号の左端を1つ左に移動します。
+
+// 7. `*--line_num_start = '1';`
+//    ここでは、行番号の左端`line_num_start`を1つ左に移動し、その新しい位置に`'1'`を設定します。これは、すべての桁がキャリーオーバーした場合（例えば`'999'`から`'1000'`になる場合）に行われます。
+
+// 8. `else *line_buf = '>';`
+//    もし`line_num_start`が`line_buf`を越えてしまった場合（つまり、行番号がバッファの大きさを超えてしまった場合）、バッファの最初の位置に`'>'`を設定します。これは、行番号がバッ
 static void
 next_line_num(void) {
     char *endp = line_num_end;
