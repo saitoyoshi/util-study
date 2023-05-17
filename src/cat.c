@@ -214,6 +214,8 @@ cat(
 // しかし、追加のフォーマットが要求される場合
 // （行番号や非印刷物など）、完全なcat()関数が呼び出されます。
 // 後者は、40行に対して300行と、より複雑です。
+
+// １　初期化
     /* Last character read from the input buffer.  */
     unsigned char ch;
 
@@ -229,12 +231,16 @@ cat(
 
     /* Number of characters read by the last read call.  */
     size_t n_read;
+// この変数 `newlines` は、入力中に連続していくつの改行文字（'\n'）が現れたかを追跡するためのものです。その値によって、後続の処理の"状態"が決まります。ここでの "状態"とは、一連のテキストが新しい行の開始なのか、それとも連続する改行による空行なのか、等を示します。
 
-    /* Determines how many consecutive newlines there have been in the
-       input.  0 newlines makes NEWLINES -1, 1 newline makes NEWLINES 1,
-       etc.  Initially 0 to indicate that we are at the beginning of a
-       new line.  The "state" of the procedure is determined by
-       NEWLINES.  */
+// 具体的には：
+
+// - `newlines` が -1 のとき：これは直前の文字が改行でなかったことを示し、新しい行の開始を意味します。
+// - `newlines` が 0 のとき：これは直前の文字が改行であり、まだ新しい行が始まっていないことを示します。
+// - `newlines` が 1 のとき：これは直前に2つの連続する改行があったことを示し、空行があったことを示します。
+// - `newlines` が 2 以上のとき：これは直前に3つ以上の連続する改行があったことを示し、複数の空行があったことを示します。
+
+// この変数は、特に `-n`, `-b`, `-s` オプションが有効なときに重要となります。これらのオプションはそれぞれ行番号の表示、非空白行に対する行番号の表示、連続する空行の圧縮を制御するためのものです。これらのオプションが有効なとき、`newlines` の値に基づいてどのような処理を行うかが決まります。
     int newlines = newlines2;
 
 #ifdef FIONREAD
@@ -246,15 +252,15 @@ cat(
     /* The inbuf pointers are initialized so that BPIN > EOB, and thereby input
        is read immediately.  */
 
-    eob = inbuf;
-    bpin = eob + 1;
+    eob = inbuf;//eobは入力バッファの先頭にセットされる
+    bpin = eob + 1;//入力バッファが現時点では空を示す。bpin > eobとなる。こうなることで、最初のループの評価時にバッファが空であると判断させることができる。これにより、すぐに新たな入力の読み込みが行われる
 
-    bpout = outbuf;
+    bpout = outbuf;//出力バッファの現在の書き込み位置が出力バッファの先頭にセットされる。これにより、最初の書き込みが出力バッファの先頭から始まるようになる。書き込み操作がバッファの先頭から開始されるようにする
 
     while (true) {
         do {
             /* Write if there are at least OUTSIZE bytes in OUTBUF.  */
-
+        // ２a出力バッファが満タンになったときにその内容を出力する処理
             if (outbuf + outsize <= bpout) {
                 char *wp = outbuf;
                 size_t remaining_bytes;
@@ -273,7 +279,7 @@ cat(
             }
 
             /* Is INBUF empty?  */
-
+            // 2b　入力バッファが空になったときに新たな内容を読み込む処理
             if (bpin > eob) {
                 bool input_pending = false;
 #ifdef FIONREAD
@@ -307,15 +313,17 @@ cat(
                     write_pending(outbuf, &bpout);
 
                 /* Read more input into INBUF.  */
-
+                // 末尾処理: 最後に、ファイルの終端に達したときやエラーが発生したときの処理を行っています。具体的には、バッファに残ったデータの出力とエラーメッセージの表示が行われます。
                 n_read = safe_read(input_desc, inbuf, insize);
                 if (n_read == SAFE_READ_ERROR) {
+                    // エラー発生
                     error(0, errno, "%s", quotef(infile));
                     write_pending(outbuf, &bpout);
                     newlines2 = newlines;
                     return false;
                 }
                 if (n_read == 0) {
+                    // EOFに達した
                     write_pending(outbuf, &bpout);
                     newlines2 = newlines;
                     return true;
@@ -332,7 +340,7 @@ cat(
 
                 /* Was the last line empty?
                    (i.e., have two or more consecutive newlines been read?)  */
-
+// ３．改行文字の処理　行番号の出力や連続する空行の圧縮などが行われます
                 if (++newlines > 0) {
                     if (newlines >= 2) {
                         /* Limit this to 2 here.  Otherwise, with lots of
@@ -384,6 +392,7 @@ cat(
 
         /* If quoting, i.e., at least one of -v, -e, or -t specified,
            scan for chars that need conversion.  */
+        //    4非印刷文字の処理: この部分では、読み込んだ文字が非印刷文字（制御文字やASCII範囲外の文字）だった場合の処理を行っています。具体的には、これらの文字を可視化するための変換が行われます。
         if (show_nonprinting) {
             while (true) {
                 if (ch >= 32) {
