@@ -43,8 +43,12 @@ static char line_buf[LINE_COUNTER_BUF_LEN] =
         ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', '0',
         '\t', '\0'};//行数を管理するため
 
-/* Position in 'line_buf' where printing starts.  This will not change
-   unless the number of lines is larger than 999999.  */
+/* line_bufの中で印刷を開始する位置を指定します。これは、行数が999999より大きくなければ変化しない。 */
+// この`line_buf`は、行番号を表示するためのバッファです。初期状態では、バッファは空白文字（' '）で埋められ、最後にタブ文字（'\t'）とヌル文字（'\0'）が追加されています。これにより、行番号を表示する際には、前方が空白で、後方がタブで区切られたフォーマットになります。バッファのサイズ（`LINE_COUNTER_BUF_LEN`）は、必要な行番号の最大桁数（おそらく最大で7桁）に余裕を持たせて設定されていると思われます。
+
+// `line_num_print`は`line_buf`内で印刷開始位置を指示するポインタで、初期値は`line_buf + LINE_COUNTER_BUF_LEN - 8`となっています。これはバッファの末尾から8文字前を指しています。このポインタ位置から行番号が表示され、行番号が1000000（7桁）以上になると、印刷開始位置は左に移動して行きます。
+
+// したがって、このバッファとポインタは、行番号を整形して表示するためのもので、行番号の前に適切な数の空白を置くことで、行番号の表示を右揃えに保つために使われています。
 static char *line_num_print = line_buf + LINE_COUNTER_BUF_LEN - 8;
 
 /* Position of the first digit in 'line_buf'.  */
@@ -190,16 +194,16 @@ write_pending(char *outbuf, char **bpout) {
    バッファの終了を明示的にテストする必要がないためです。 */
 static bool //I/Oコピーのためのすべての機能を実装している
 cat(
-    /* Pointer to the beginning of the input buffer.  */
+// inbuf (char *): これは入力バッファの開始位置を示すポインタです。このバッファには関数が読み取るべきデータが格納されます。
     char *inbuf,
 
-    /* Number of characters read in each read call.  */
+    // insize (size_t): これは各読み取り呼び出しで読み取られる文字の数を示します。つまり、関数が一度に読み込むデータのサイズを定義します。
     size_t insize,
 
-    /* Pointer to the beginning of the output buffer.  */
+    // outbuf (char *): これは出力バッファの開始位置を示すポインタです。関数がデータを処理した後、その結果はこのバッファに書き込まれます。
     char *outbuf,
 
-    /* Number of characters written by each write call.  */
+    // outsize (size_t): これは各書き込み呼び出しで書き込まれる文字の数を示します。つまり、関数が一度に書き込むデータのサイズを定義します。
     size_t outsize,
 
     /* Variables that have values according to the specified options.  */
@@ -216,20 +220,18 @@ cat(
 // 後者は、40行に対して300行と、より複雑です。
 
 // １　初期化
-    /* Last character read from the input buffer.  */
+// ch (unsigned char): これは最後に入力バッファから読み取った文字を保持します。文字は1バイト（unsigned char）で表現され、この変数はその文字を保存しています
     unsigned char ch;
 
-    /* Pointer to the next character in the input buffer.  */
+    // bpin (char *): これは「Buffer Pointer IN」の略で、入力バッファで次に読むべき文字の場所を指すポインタです。つまり、bpinが指す場所にはまだ読んでいないデータが存在します。
     char *bpin;
 
-    /* Pointer to the first non-valid byte in the input buffer, i.e., the
-       current end of the buffer.  */
+    // eob (char *): これは「End Of Buffer」の略で、入力バッファの終わり、つまり有効なデータが存在しないバッファの最初の位置を指すポインタです。bpinがeobと等しくなった時、バッファが空であり、新たなデータを読み込む必要があることを示します。
     char *eob;
-
-    /* Pointer to the position where the next character shall be written.  */
+// bpout (char *): これは「Buffer Pointer OUT」の略で、出力バッファのどこに次の文字を書き込むべきかを示すポインタです。つまり、bpoutが指す場所にはまだ書き込まれていないスペースがあります。
     char *bpout;
 
-    /* Number of characters read by the last read call.  */
+    // これは最後の読み込み呼び出しによって読み取られた文字数を保持します。size_tは非負整数の型で、ここでは読み込んだ文字数を表すのに適しています。
     size_t n_read;
 // この変数 `newlines` は、入力中に連続していくつの改行文字（'\n'）が現れたかを追跡するためのものです。その値によって、後続の処理の"状態"が決まります。ここでの "状態"とは、一連のテキストが新しい行の開始なのか、それとも連続する改行による空行なのか、等を示します。
 
@@ -242,15 +244,14 @@ cat(
 
 // この変数は、特に `-n`, `-b`, `-s` オプションが有効なときに重要となります。これらのオプションはそれぞれ行番号の表示、非空白行に対する行番号の表示、連続する空行の圧縮を制御するためのものです。これらのオプションが有効なとき、`newlines` の値に基づいてどのような処理を行うかが決まります。
     int newlines = newlines2;
-
+// これは、プログラムが FIONREAD ioctl を使用して最適化を行うべきかどうかを示すフラグです。
 #ifdef FIONREAD
-    /* If nonzero, use the FIONREAD ioctl, as an optimization.
-       (On Ultrix, it is not supported on NFS file systems.)  */
+    /* 非ゼロの場合(true)、最適化としてFIONREAD ioctlを使用します。
+       (Ultrixでは、NFSファイルシステムでサポートされていません。) */
     bool use_fionread = true;
 #endif
 
-    /* The inbuf pointers are initialized so that BPIN > EOB, and thereby input
-       is read immediately.  */
+    /* BPIN＞EOBとなるようにinbufポインタを初期化し，入力を即座に読み込む。が即座に読み込まれます。 */
 
     eob = inbuf;//eobは入力バッファの先頭にセットされる
     bpin = eob + 1;//入力バッファが現時点では空を示す。bpin > eobとなる。こうなることで、最初のループの評価時にバッファが空であると判断させることができる。これにより、すぐに新たな入力の読み込みが行われる
@@ -259,20 +260,49 @@ cat(
 
     while (true) {
         do {
-            /* Write if there are at least OUTSIZE bytes in OUTBUF.  */
+            /* OUTBUFにOUTSIZE以上のバイトがあれば書き込む。 */
         // ２a出力バッファが満タンになったときにその内容を出力する処理
+//         このコードブロックは、出力バッファが一杯になった場合（`outbuf + outsize <= bpout`）に実行されます。出力バッファが一杯になったというのは、つまり、出力バッファに書き込まれたデータのサイズが、バッファのサイズ（`outsize`）を超えた場合を指します。
+
+// この場合、次の操作が実行されます：
+
+// 1. バッファ内のデータを出力するために、`full_write()`関数が呼び出されます。この関数は、出力バッファのデータを標準出力（`STDOUT_FILENO`）に書き込みます。書き込むデータのサイズは`outsize`です。
+
+// 2. 書き込み操作がエラーを返した場合（書き込みサイズが`outsize`と等しくない場合）、エラーメッセージが表示され、プログラムは終了します。
+
+// 3. 成功した書き込み操作の後、書き込みポインタ（`wp`）は`outsize`だけ進みます。
+
+// 4. バッファにまだ書き込まれていないデータ（`remaining_bytes`）がある場合、このループは続行します。つまり、全てのデータが書き込まれるまで、`full_write()`呼び出しとポインタの進行が繰り返されます。
+
+// 5. 全てのデータが書き込まれた後、バッファ内にまだ書き込まれていない残りのデータ（`remaining_bytes`）がバッファの先頭に移動されます。これは`memmove()`関数によって行われます。この操作は、次のデータの読み取りと書き込みのためにバッファをクリアする役割を果たします。
+
+// 6. 最後に、出力ポインタ（`bpout`）は、新しく書き込むべき位置、つまり移動されたデータの末尾に設定されます。
+
+// このコードブロックの主な目的は、バッファが一杯になったときにデータを書き込み、バッファをクリアすることで、次のデータの書き込みを可能にすることです。
             if (outbuf + outsize <= bpout) {
-                char *wp = outbuf;
+                // この判定はポインタとバッファサイズの操作に基づいています。
+
+// `outbuf`は出力バッファの先頭を指すポインタで、`outsize`はバッファの大きさ（容量）を表す値です。`bpout`は出力バッファ内の「次に書き込むべき位置」を指すポインタです。したがって、`bpout`が`outbuf + outsize`（バッファの先頭 + バッファのサイズ = バッファの末尾）に達するということは、出力バッファが一杯になったということを意味します。
+
+// 具体的には、`bpout`が`outbuf`から`outsize`バイト以上先に進んだ場合、つまり`outbuf + outsize <= bpout`となった場合、バッファは一杯で、新たなデータの書き込みがバッファのサイズを超えると判断されます。これは、`bpout`が「次に書き込むべき位置」を指しているため、`bpout`がバッファの末尾を超えるということは、すでにバッファが一杯であるということを意味します。
+                char *wp = outbuf;//wp書き込みポインタ
                 size_t remaining_bytes;
                 do {
                     if (full_write(STDOUT_FILENO, wp, outsize) != outsize)
                         die(EXIT_FAILURE, errno, _("write error"));
                     wp += outsize;
-                    remaining_bytes = bpout - wp;
+
+//                     `remaining_bytes = bpout - wp;` この式はポインタの差分を取る操作です。`bpout`は出力バッファ内の「次に書き込むべき位置」を指すポインタで、`wp`は現在書き込んでいる位置を指すポインタです。
+
+// したがって、`remaining_bytes = bpout - wp;`は、出力バッファ内でまだ書き込まれていないバイト数（残りのバイト数）を計算します。
+
+// ポインタ同士の減算操作は、そのポインタが指すデータ型の単位で差分を計算します。この場合、`char`型ポインタなので、`bpout - wp`は「`bpout`が指す場所から`wp`が指す場所までの`char`型データの数」を表します。これはバイト単位での差分と等しくなります。
+
+// 具体的には、`wp`がバッファの先頭を指し、`bpout`がその先の何かの位置を指している場合、`remaining_bytes = bpout - wp;`は`bpout`と`wp`の間にあるバイト数を計算します。
                 } while (outsize <= remaining_bytes);
 
-                /* Move the remaining bytes to the beginning of the
-                   buffer.  */
+                /* 残りのバイトをバッファの先頭に移動させる。
+バッファの先頭に移動させます。 */
 
                 memmove(outbuf, wp, remaining_bytes);
                 bpout = outbuf + remaining_bytes;
@@ -281,21 +311,26 @@ cat(
             /* Is INBUF empty?  */
             // 2b　入力バッファが空になったときに新たな内容を読み込む処理
             if (bpin > eob) {
+                // このコードでは、`bpin`が指す場所が`eob`（End of Buffer）を超えているかどうかをチェックしています。具体的には、入力バッファから読み取るべき新たなデータがない（すべて読み取り終わった）ことを示しています。
+
+// `bpin`は"Buffer Pointer for INput"の略で、入力バッファの現在の読み取り位置を指しています。一方、`eob`は"End Of Buffer"の略で、入力バッファの終端を指しています。したがって、`bpin > eob`という条件は「現在の読み取り位置がバッファの終端を超えているか？」ということを確認しています。
+
+// もし`bpin > eob`が真であれば、それは入力バッファ内の現在のデータをすべて読み終わった（あるいはまだ何も読んでいない）、つまり新たなデータを読み込む必要があるという状態を意味します。これにより、次のデータ読み取りを準備するための`input_pending`フラグが`false`に設定されます。
                 bool input_pending = false;
 #ifdef FIONREAD
+// FIONREADが利用可能な環境では、これにより未読データが存在する場合のみ読み取り操作を行い、それ以外の場合には不要な読み取り操作を避けることが可能になり、プログラムのパフォーマンスを向上させることができます。ただし、FIONREADがサポートされていない環境や、特定のエラーが発生した場合には、この方法を使用しないようにコードが設計されています。
                 int n_to_read = 0;
 
-                /* Is there any input to read immediately?
-                   If not, we are about to wait,
-                   so write all buffered output before waiting.  */
-
+            /* すぐに読むべき入力があるか？
+ない場合は、これから待つことになります、 ので、待つ前にバッファリングされた出力をすべて書き込んでください。 */
+// use_fionread フラグが真である場合、FIONREAD ioctl を使って未読データのバイト数を n_to_read に取得しようとしています
                 if (use_fionread && ioctl(input_desc, FIONREAD, &n_to_read) < 0) {
-                    /* Ultrix returns EOPNOTSUPP on NFS;
-                       HP-UX returns ENOTTY on pipes.
-                       SunOS returns EINVAL and
-                       More/BSD returns ENODEV on special files
-                       like /dev/null.
-                       Irix-5 returns ENOSYS on pipes.  */
+                    /* Ultrix は NFS で EOPNOTSUPP を返します；
+                       HP-UXはパイプでENOTTYを返します。
+                       SunOSはEINVALを返し
+                       More/BSDは/dev/nullのような特殊なファイルに対してENODEVを返します。
+                       のような特殊なファイルではENODEVを返す。
+                       Irix-5 はパイプで ENOSYS を返します。 */
                     if (errno == EOPNOTSUPP || errno == ENOTTY || errno == EINVAL || errno == ENODEV || errno == ENOSYS)
                         use_fionread = false;
                     else {
@@ -305,14 +340,17 @@ cat(
                         return false;
                     }
                 }
-                if (n_to_read != 0)
+                if (n_to_read != 0) {
+// 未読データがあれば、後続の処理で未読データがあることをわかるようにするためにフラグをたてる
                     input_pending = true;
+                }
 #endif
 
                 if (!input_pending)
+                //保留中のデータをすべて書き込む外部の非標準ヘルパー
                     write_pending(outbuf, &bpout);
 
-                /* Read more input into INBUF.  */
+                /* INBUFにさらに入力を読み込む。 */
                 // 末尾処理: 最後に、ファイルの終端に達したときやエラーが発生したときの処理を行っています。具体的には、バッファに残ったデータの出力とエラーメッセージの表示が行われます。
                 n_read = safe_read(input_desc, inbuf, insize);
                 if (n_read == SAFE_READ_ERROR) {
@@ -329,55 +367,48 @@ cat(
                     return true;
                 }
 
-                /* Update the pointers and insert a sentinel at the buffer
-                   end.  */
+/* ポインターを更新し、バッファエンドにセンチネルを挿入します。 */
+// bpin = inbuf; eob = bpin + n_read; *eob = '\n'; これらの行では、バッファ内の新たなデータの位置を設定し、バッファの終端にセンチネル（終端を表す特殊な値）として改行文字を挿入しています。これにより、バッファの終端を明示的に示すことで、バッファオーバーフロー（バッファの範囲を超えたアクセス）を防ぐことができます。
 
                 bpin = inbuf;
                 eob = bpin + n_read;
                 *eob = '\n';
             } else {
-                /* It was a real (not a sentinel) newline.  */
-
-                /* Was the last line empty?
-                   (i.e., have two or more consecutive newlines been read?)  */
+                /* 本物の（センチネルではない）改行でした。 */
+                /* 最後の行は空でしたか？
+                   (つまり、2つ以上の連続した改行が読み込まれたか) */
 // ３．改行文字の処理　行番号の出力や連続する空行の圧縮などが行われます
                 if (++newlines > 0) {
                     if (newlines >= 2) {
-                        /* Limit this to 2 here.  Otherwise, with lots of
-                           consecutive newlines, the counter could wrap
-                           around at INT_MAX.  */
-                        newlines = 2;
-
-                        /* Are multiple adjacent empty lines to be substituted
-                           by single ditto (-s), and this was the second empty
-                           line?  */
+                        /* ここでは2個までとする。 そうでないと、連続した改行が多い場合 連続した改行があると、カウンターはINT_MAXで折り返すことができます。 */
+                        /* 複数の隣接する空行を同上(-s)で置換する場合、この空行は2行目だったのでしょうか？ */
                         if (squeeze_blank) {
                             ch = *bpin++;
                             continue;
                         }
                     }
 
-                    /* Are line numbers to be written at empty lines (-n)?  */
+                    /* 空行(-n)に行番号を書きますか？ */
 
                     if (number && !number_nonblank) {
-                        next_line_num();
+                        next_line_num();//行番号バッファを更新する。
                         bpout = stpcpy(bpout, line_num_print);
                     }
                 }
 
-                /* Output a currency symbol if requested (-e).  */
+                /* (-e).$を出力  */
 
                 if (show_ends)
                     *bpout++ = '$';
 
-                /* Output the newline.  */
+                /* 改行を出力.  */
 
                 *bpout++ = '\n';
             }
             ch = *bpin++;
         } while (ch == '\n');
 
-        /* Are we at the beginning of a line, and line numbers are requested?  */
+        /* 行頭であり、行番号が要求されているか？ */
 
         if (newlines >= 0 && number) {
             next_line_num();
