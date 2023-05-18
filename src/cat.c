@@ -505,64 +505,63 @@ cat(
 }
 
 int main(int argc, char **argv) {
-    /* Optimal size of i/o operations of output.  */
+    /* 出力のi/o操作の最適なサイズ。 */
     size_t outsize;
 
-    /* Optimal size of i/o operations of input.  */
+    /* 入力のi/o操作の最適なサイズ。 */
     size_t insize;
 
     size_t page_size = getpagesize();//システムのメモリページのサイズを格納する
     // 4kが一般的
 
-    /* Pointer to the input buffer.  */
+    // 入力バッファを指すポインタ
     char *inbuf;
 
-    /* Pointer to the output buffer.  */
+    // 出力バッファを指すポインタ
     char *outbuf;
 
     bool ok = true;//実行が成功したことを示すフラグ
     int c;//解析のための次のオプション文字を保持する．
 
-    /* Index in argv to processed argument.  */
+    /* argvのインデックスで引数を処理する。 */
     int argind;
 
-    /* Device number of the output (file or whatever).  */
     dev_t out_dev;//出力デバイス番号
 
-    /* I-node number of the output.  */
     ino_t out_ino;//出力のinode番号
 
-    /* True if the output is a regular file.  */
     bool out_isreg;//出力がプレーンファイルであるかどうかのフラグ
 
-    /* Nonzero if we have ever read standard input.  */
+    /* 標準入力を読んだことがある場合は、非ゼロとする。 */
     bool have_read_stdin = false;//標準入力から読むかどうかのフラグ
 
     struct stat stat_buf;
 
-    /* Variables that are set according to the specified options.  */
-    bool number = false;
-    bool number_nonblank = false;
-    bool squeeze_blank = false;
-    bool show_ends = false;
-    bool show_nonprinting = false;
-    bool show_tabs = false;
+    /* 指定されたオプションに従って設定される変数です。 */
+    bool number = false;//-n
+    bool number_nonblank = false;//-b
+    bool squeeze_blank = false;//-s
+    bool show_ends = false;//-E
+    bool show_nonprinting = false;//-v
+    bool show_tabs = false;//-T
     int file_open_mode = O_RDONLY;//ファイルモードを保持するビットマップ．
 
     static struct option const long_options[] =
         {
-            {"number-nonblank", no_argument, NULL, 'b'},            {"number", no_argument, NULL, 'n'},//
             //空行以外に行番号をつける
-            {"squeeze-blank", no_argument, NULL, 's'},
+            {"number-nonblank", no_argument, NULL, 'b'},
+            // 全ての行に行番号を付ける
+            {"number", no_argument, NULL, 'n'},//
             //連続した空行の出力を行わない
-            {"show-nonprinting", no_argument, NULL, 'v'},
+            {"squeeze-blank", no_argument, NULL, 's'},
             //^ や M- 表記を使用する (LFD と TAB は除く)
-            {"show-ends", no_argument, NULL, 'E'},
+            {"show-nonprinting", no_argument, NULL, 'v'},
             //行の最後に $ を付ける
-            {"show-tabs", no_argument, NULL, 'T'},
+            {"show-ends", no_argument, NULL, 'E'},
             //TAB 文字を ^I で表示
+            {"show-tabs", no_argument, NULL, 'T'},
+            //-vETと同じ
             {"show-all", no_argument, NULL, 'A'},
-            //-vET
             {GETOPT_HELP_OPTION_DECL},
             {GETOPT_VERSION_OPTION_DECL},
             {NULL, 0, NULL, 0}};
@@ -573,13 +572,8 @@ int main(int argc, char **argv) {
     bindtextdomain(PACKAGE, LOCALEDIR);//翻訳対応
     textdomain(PACKAGE);//翻訳対応
 
-    /* Arrange to close stdout if we exit via the
-       case_GETOPT_HELP_CHAR or case_GETOPT_VERSION_CHAR code.
-       Normally STDOUT_FILENO is used rather than stdout, so
-       close_stdout does nothing.  */
+    // case_GETOPT_HELP_CHAR or case_GETOPT_VERSION_CHAR code.を経由して標準出力を閉じるように手配して。
     atexit(close_stdout);//きちんと標準出力が閉じられるようにする
-
-    /* Parse command line options.  */
 
     while ((c = getopt_long(argc, argv, "benstuvAET", long_options, NULL)) != -1) {
         switch (c) {
@@ -607,7 +601,7 @@ int main(int argc, char **argv) {
                 break;
 
             case 'u'://無視されるオプション
-                /* We provide the -u feature unconditionally.  */
+                /* -u 機能を無条件で提供します。 */
                 break;
 
             case 'v'://^ や M- 表記を使用する (LFD と TAB は除く)
@@ -639,7 +633,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* Get device, i-node number, and optimal blocksize of output.  */
     // 標準出力に関する情報を取得
     if (fstat(STDOUT_FILENO, &stat_buf) < 0)
     // 失敗したら
@@ -655,10 +648,10 @@ int main(int argc, char **argv) {
       // これらすべてがfalseだと、file_open_modeを...にする
         file_open_mode |= O_BINARY;
         xset_binary_mode(STDOUT_FILENO, O_BINARY);
+        // 標準出力をバイナリモードにする
     }
 
-    /* Check if any of the input files are the same as the output file.  */
-
+/* 入力ファイルの中に、出力ファイルと同じものがあるかどうかを確認します。 */
     /* Main loop.  */
 
     infile = "-";
@@ -684,6 +677,7 @@ int main(int argc, char **argv) {
               // openできなかったときのエラー処理
                 error(0, errno, "%s", quotef(infile));
                 ok = false;
+                // 読めなかったら次の引数へ
                 continue;
             }
         }
@@ -698,9 +692,7 @@ int main(int argc, char **argv) {
 
         fdadvise(input_desc, 0, 0, FADVISE_SEQUENTIAL);
 
-        /* Don't copy a nonempty regular file to itself, as that would
-           merely exhaust the output device.  It's better to catch this
-           error earlier rather than later.  */
+        /* 空でない通常ファイルをそれ自体にコピーしてはいけない、それは単に出力デバイスを使い果たすだけだからだ。このエラーは、後で発見するよりも、早めに発見する方がよいでしょう。 */
 
         if (out_isreg && stat_buf.st_dev == out_dev && stat_buf.st_ino == out_ino && lseek(input_desc, 0, SEEK_CUR) < stat_buf.st_size) {
             error(0, 0, _("%s: input file is output file"), quotef(infile));
@@ -708,9 +700,7 @@ int main(int argc, char **argv) {
             goto contin;
         }
 
-        /* Select which version of 'cat' to use.  If any format-oriented
-           options were given use 'cat'; otherwise use 'simple_cat'.  */
-
+        /* フォーマット指向のオプションが与えられている場合は 'cat' を、そうでない場合は 'simple_cat' を使用します。 */
         if (!(number || show_ends || show_nonprinting || show_tabs || squeeze_blank)) {
             insize = MAX(insize, outsize);
             inbuf = xmalloc(insize + page_size - 1);
