@@ -1,5 +1,3 @@
-#include <config.h>
-
 #include <stdio.h>
 #include <getopt.h>
 #include <sys/types.h>
@@ -9,15 +7,11 @@
 #endif
 #include <sys/ioctl.h>
 
-#include "system.h"
-#include "ioblksize.h"
-#include "die.h"
 #include "error.h"
-#include "fadvise.h"
-#include "full-write.h"
-#include "safe-read.h"
-#include "xbinary-io.h"
-
+#include <errno.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#define EXIT_SUCCESS 0
 /* The official name of this program (e.g., no 'g' prefix).  */
 #define PROGRAM_NAME "cat"
 
@@ -56,23 +50,20 @@ static char *line_num_end = line_buf + LINE_COUNTER_BUF_LEN - 3;
 static int newlines2 = 0;
 
 void
-usage (int status)
+usage (int status, char *program_name)
 {
   if (status != EXIT_SUCCESS)
-    emit_try_help ();
+    puts("i want to call emt_try_help()");
   else
     {
-      printf (_("\
-Usage: %s [OPTION]... [FILE]...\n\
-"),
+      printf ("\
+Usage: %s [OPTION]... [FILE]...\n",
               program_name);
-      fputs (_("\
+      fputs ("\
 Concatenate FILE(s) to standard output.\n\
-"), stdout);
+", stdout);
 
-      emit_stdin_note ();
-
-      fputs (_("\
+      fputs ("\
 \n\
   -A, --show-all           equivalent to -vET\n\
   -b, --number-nonblank    number nonempty output lines, overrides -n\n\
@@ -80,23 +71,20 @@ Concatenate FILE(s) to standard output.\n\
   -E, --show-ends          display $ at end of each line\n\
   -n, --number             number all output lines\n\
   -s, --squeeze-blank      suppress repeated empty output lines\n\
-"), stdout);
-      fputs (_("\
+", stdout);
+      fputs ("\
   -t                       equivalent to -vT\n\
   -T, --show-tabs          display TAB characters as ^I\n\
   -u                       (ignored)\n\
   -v, --show-nonprinting   use ^ and M- notation, except for LFD and TAB\n\
-"), stdout);
-      fputs (HELP_OPTION_DESCRIPTION, stdout);
-      fputs (VERSION_OPTION_DESCRIPTION, stdout);
-      printf (_("\
+", stdout);
+      printf ("\
 \n\
 Examples:\n\
   %s f - g  Output f's contents, then standard input, then g's contents.\n\
   %s        Copy standard input to standard output.\n\
-"),
+",
               program_name, program_name);
-      emit_ancillary_info (PROGRAM_NAME);
     }
   exit (status);
 }
@@ -531,22 +519,10 @@ main (int argc, char **argv)
     {"show-ends", no_argument, NULL, 'E'},
     {"show-tabs", no_argument, NULL, 'T'},
     {"show-all", no_argument, NULL, 'A'},
-    {GETOPT_HELP_OPTION_DECL},
-    {GETOPT_VERSION_OPTION_DECL},
     {NULL, 0, NULL, 0}
   };
 
-  initialize_main (&argc, &argv);
-  set_program_name (argv[0]);
-  setlocale (LC_ALL, "");
-  bindtextdomain (PACKAGE, LOCALEDIR);
-  textdomain (PACKAGE);
 
-  /* Arrange to close stdout if we exit via the
-     case_GETOPT_HELP_CHAR or case_GETOPT_VERSION_CHAR code.
-     Normally STDOUT_FILENO is used rather than stdout, so
-     close_stdout does nothing.  */
-  atexit (close_stdout);
 
   /* Parse command line options.  */
 
@@ -605,7 +581,7 @@ main (int argc, char **argv)
         case_GETOPT_VERSION_CHAR (PROGRAM_NAME, AUTHORS);
 
         default:
-          usage (EXIT_FAILURE);
+          usage (EXIT_FAILURE, argv[0]);
         }
     }
 
