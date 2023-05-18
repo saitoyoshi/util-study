@@ -11,13 +11,31 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
 #define EXIT_SUCCESS 0
-/* The official name of this program (e.g., no 'g' prefix).  */
-#define PROGRAM_NAME "cat"
+# define DEV_BSIZE	512
+/* Macros for min/max.  */
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#define STREQ(a,b) (strcmp(a,b) == 0)
+# define ST_BLKSIZE(statbuf) ((0 < (statbuf).st_blksize \
+                               && (statbuf).st_blksize <= ((size_t)-1) / 8 + 1) \
+                              ? (statbuf).st_blksize : DEV_BSIZE)
+enum { IO_BUFSIZE = 128*1024 };
+static inline size_t
+io_blksize (struct stat sb)
+{
+  return MAX (IO_BUFSIZE, ST_BLKSIZE (sb));
+}
+
+#define PROGRAM_NAME "my_cat"
 
 #define AUTHORS \
-  proper_name ("Torbjorn Granlund"), \
-  proper_name ("Richard M. Stallman")
+  proper_name ("yoshi")
 
 /* Name of input file.  May be "-".  */
 static char const *infile;
@@ -48,6 +66,13 @@ static char *line_num_end = line_buf + LINE_COUNTER_BUF_LEN - 3;
 
 /* Preserves the 'cat' function's local 'newlines' between invocations.  */
 static int newlines2 = 0;
+static inline void *
+ptr_align (void const *ptr, size_t alignment)
+{
+  char const *p0 = ptr;
+  char const *p1 = p0 + alignment - 1;
+  return (void *) (p1 - (size_t) p1 % alignment);
+}
 
 void
 usage (int status, char *program_name)
@@ -112,7 +137,9 @@ next_line_num (void)
 
 /* Plain cat.  Copies the file behind 'input_desc' to STDOUT_FILENO.
    Return true if successful.  */
-
+void err(void) {
+  fprintf(stderr, "file %s line %d\n", __FILE__, __LINE__);
+}
 static bool
 simple_cat (
      /* Pointer to the buffer, used by reads and writes.  */
@@ -131,10 +158,11 @@ simple_cat (
     {
       /* Read a block of input.  */
 
-      n_read = safe_read (input_desc, buf, bufsize);
-      if (n_read == SAFE_READ_ERROR)
+      n_read = read (input_desc, buf, bufsize);
+      if (n_read == -1)
         {
-          error (0, errno, "%s", quotef (infile));
+          err();
+          // fprintf(stderr, "file %s line %d\n", __FILE__, __LINE__);
           return false;
         }
 
@@ -148,8 +176,8 @@ simple_cat (
       {
         /* The following is ok, since we know that 0 < n_read.  */
         size_t n = n_read;
-        if (full_write (STDOUT_FILENO, buf, n) != n)
-          die (EXIT_FAILURE, errno, _("write error"));
+        if (write (STDOUT_FILENO, buf, n) != n)
+          err();
       }
     }
 }
@@ -164,8 +192,8 @@ write_pending (char *outbuf, char **bpout)
   size_t n_write = *bpout - outbuf;
   if (0 < n_write)
     {
-      if (full_write (STDOUT_FILENO, outbuf, n_write) != n_write)
-        die (EXIT_FAILURE, errno, _("write error"));
+      if (write (STDOUT_FILENO, outbuf, n_write) != n_write)
+        err();
       *bpout = outbuf;
     }
 }
@@ -248,8 +276,8 @@ cat (
               size_t remaining_bytes;
               do
                 {
-                  if (full_write (STDOUT_FILENO, wp, outsize) != outsize)
-                    die (EXIT_FAILURE, errno, _("write error"));
+                  if (write (STDOUT_FILENO, wp, outsize) != outsize)
+                    err();
                   wp += outsize;
                   remaining_bytes = bpout - wp;
                 }
@@ -289,8 +317,7 @@ cat (
                     use_fionread = false;
                   else
                     {
-                      error (0, errno, _("cannot do ioctl on %s"),
-                             quoteaf (infile));
+                      err();
                       newlines2 = newlines;
                       return false;
                     }
@@ -304,10 +331,10 @@ cat (
 
               /* Read more input into INBUF.  */
 
-              n_read = safe_read (input_desc, inbuf, insize);
-              if (n_read == SAFE_READ_ERROR)
+              n_read = read (input_desc, inbuf, insize);
+              if (n_read == -1)
                 {
-                  error (0, errno, "%s", quotef (infile));
+err();
                   write_pending (outbuf, &bpout);
                   newlines2 = newlines;
                   return false;
@@ -576,9 +603,9 @@ main (int argc, char **argv)
           show_tabs = true;
           break;
 
-        case_GETOPT_HELP_CHAR;
+        // case_GETOPT_HELP_CHAR;
 
-        case_GETOPT_VERSION_CHAR (PROGRAM_NAME, AUTHORS);
+        // case_GETOPT_VERSION_CHAR (PROGRAM_NAME, AUTHORS);
 
         default:
           usage (EXIT_FAILURE, argv[0]);
@@ -588,7 +615,7 @@ main (int argc, char **argv)
   /* Get device, i-node number, and optimal blocksize of output.  */
 
   if (fstat (STDOUT_FILENO, &stat_buf) < 0)
-    die (EXIT_FAILURE, errno, _("standard output"));
+    err();
 
   outsize = io_blksize (stat_buf);
   out_dev = stat_buf.st_dev;
@@ -597,8 +624,8 @@ main (int argc, char **argv)
 
   if (! (number || show_ends || squeeze_blank))
     {
-      file_open_mode |= O_BINARY;
-      xset_binary_mode (STDOUT_FILENO, O_BINARY);
+      // file_open_mode |= O_BINARY;
+      // xset_binary_mode (STDOUT_FILENO, O_BINARY);
     }
 
   /* Check if any of the input files are the same as the output file.  */
@@ -617,15 +644,15 @@ main (int argc, char **argv)
         {
           have_read_stdin = true;
           input_desc = STDIN_FILENO;
-          if (file_open_mode & O_BINARY)
-            xset_binary_mode (STDIN_FILENO, O_BINARY);
+          // if (file_open_mode & O_BINARY)
+            // xset_binary_mode (STDIN_FILENO, O_BINARY);
         }
       else
         {
           input_desc = open (infile, file_open_mode);
           if (input_desc < 0)
             {
-              error (0, errno, "%s", quotef (infile));
+              err();
               ok = false;
               continue;
             }
@@ -633,13 +660,11 @@ main (int argc, char **argv)
 
       if (fstat (input_desc, &stat_buf) < 0)
         {
-          error (0, errno, "%s", quotef (infile));
+          err();
           ok = false;
           goto contin;
         }
       insize = io_blksize (stat_buf);
-
-      fdadvise (input_desc, 0, 0, FADVISE_SEQUENTIAL);
 
       /* Don't copy a nonempty regular file to itself, as that would
          merely exhaust the output device.  It's better to catch this
@@ -649,7 +674,7 @@ main (int argc, char **argv)
           && stat_buf.st_dev == out_dev && stat_buf.st_ino == out_ino
           && lseek (input_desc, 0, SEEK_CUR) < stat_buf.st_size)
         {
-          error (0, 0, _("%s: input file is output file"), quotef (infile));
+          err();
           ok = false;
           goto contin;
         }
@@ -661,13 +686,13 @@ main (int argc, char **argv)
              || show_tabs || squeeze_blank))
         {
           insize = MAX (insize, outsize);
-          inbuf = xmalloc (insize + page_size - 1);
+          inbuf = malloc (insize + page_size - 1);
 
           ok &= simple_cat (ptr_align (inbuf, page_size), insize);
         }
       else
         {
-          inbuf = xmalloc (insize + 1 + page_size - 1);
+          inbuf = malloc (insize + 1 + page_size - 1);
 
           /* Why are
              (OUTSIZE - 1 + INSIZE * 4 + LINE_COUNTER_BUF_LEN + PAGE_SIZE - 1)
@@ -691,7 +716,7 @@ main (int argc, char **argv)
              on some paging implementations, so add PAGE_SIZE - 1 bytes to the
              request to make room for the alignment.  */
 
-          outbuf = xmalloc (outsize - 1 + insize * 4 + LINE_COUNTER_BUF_LEN
+          outbuf = malloc (outsize - 1 + insize * 4 + LINE_COUNTER_BUF_LEN
                             + page_size - 1);
 
           ok &= cat (ptr_align (inbuf, page_size), insize,
@@ -707,14 +732,14 @@ main (int argc, char **argv)
     contin:
       if (!STREQ (infile, "-") && close (input_desc) < 0)
         {
-          error (0, errno, "%s", quotef (infile));
+          err();
           ok = false;
         }
     }
   while (++argind < argc);
 
   if (have_read_stdin && close (STDIN_FILENO) < 0)
-    die (EXIT_FAILURE, errno, _("closing standard input"));
+    err();
 
   return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
