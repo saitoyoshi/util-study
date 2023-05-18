@@ -230,12 +230,12 @@ cat(
     size_t outsize,
 
     /* Variables that have values according to the specified options.  */
-    bool show_nonprinting,
-    bool show_tabs,
-    bool number,
-    bool number_nonblank,
-    bool show_ends,
-    bool squeeze_blank) {
+    bool show_nonprinting,//-v
+    bool show_tabs,//-T
+    bool number,//-n
+    bool number_nonblank,//-b
+    bool show_ends,//-E
+    bool squeeze_blank /* -s */) {
       // cat()とsimple_cat()の比較
 // 入力がそのまま出力にコピーされるのであれば、simple_cat()が適しています。
 // しかし、追加のフォーマットが要求される場合
@@ -282,6 +282,7 @@ cat(
     bpout = outbuf;//出力バッファの現在の書き込み位置が出力バッファの先頭にセットされる。これにより、最初の書き込みが出力バッファの先頭から始まるようになる。書き込み操作がバッファの先頭から開始されるようにする
 
     while (true) {
+        // 無限ループ
         do {
             /* OUTBUFにOUTSIZE以上のバイトがあれば書き込む。 */
         // ２a出力バッファが満タンになったときにその内容を出力する処理
@@ -400,7 +401,7 @@ cat(
                 /* 本物の（センチネルではない）改行でした。 */
                 /* 最後の行は空でしたか？
                    (つまり、2つ以上の連続した改行が読み込まれたか) */
-// ３．改行文字の処理　行番号の出力や連続する空行の圧縮などが行われます
+//todo ３．改行文字の処理　行番号の出力や連続する空行の圧縮などが行われます
                 if (++newlines > 0) {
                     if (newlines >= 2) {
                         /* ここでは2個までとする。 そうでないと、連続した改行が多い場合 連続した改行があると、カウンターはINT_MAXで折り返すことができます。 */
@@ -429,33 +430,35 @@ cat(
                 *bpout++ = '\n';
             }
             ch = *bpin++;
-        } while (ch == '\n');
+        } while (ch == '\n');//chは最後に入力バッファから読み取った１文字。したがって、読み取ったものが改行文字の間繰り返す
 
         /* 行頭であり、行番号が要求されているか？ */
-
+        // newlinesは最後に読み込んだ文字が改行であるかどうかを示す変数。改行が連続で出現した場合、この値はそれらの連続する改行の数になります。最後に読み込んだ文字が改行でなければ、この値は-1になります。したがって、newlines >= 0は新しい行が始まったという状態を示す
         if (newlines >= 0 && number) {
             next_line_num();
+            // line_num_printは出力するべき行番号を格納した文字列の開始位置を指すポインタ.next_line_num()によって更新され、最新の行番号を常に保持
             bpout = stpcpy(bpout, line_num_print);
+            // bpoutは出力バッファの現在のいちを指すポインタ。line_num_printが指す文字列（行番号）をbpoutが指す位置にコピーし、その後、コピーした文字列の末尾のいちを返します。その結果bpoutは更新され、次の出力は行番号の直後から開始される
         }
 
-        /* Here CH cannot contain a newline character.  */
+        /* ここでCHは改行文字を含むことができません。 */
 
-        /* The loops below continue until a newline character is found,
-           which means that the buffer is empty or that a proper newline
-           has been found.  */
-
-        /* If quoting, i.e., at least one of -v, -e, or -t specified,
-           scan for chars that need conversion.  */
+        /* バッファが空になったか、適切な改行が見つかったことを意味する改行文字が見つかるまでは、以下のループが続きます。 */
+        /* quoting、すなわち-v、-e、-tのうち少なくとも1つが指定されている場合、 変換が必要な文字列をスキャンします。 */
         //    4非印刷文字の処理: この部分では、読み込んだ文字が非印刷文字（制御文字やASCII範囲外の文字）だった場合の処理を行っています。具体的には、これらの文字を可視化するための変換が行われます。
         if (show_nonprinting) {
             while (true) {
                 if (ch >= 32) {
+                    // 特殊文字ではなくて
                     if (ch < 127)
+                    // asciiにある文字なら
                         *bpout++ = ch;
                     else if (ch == 127) {
+                        // DELなら
                         *bpout++ = '^';
                         *bpout++ = '?';
                     } else {
+                        // asciiの表にないなら
                         *bpout++ = 'M';
                         *bpout++ = '-';
                         if (ch >= 128 + 32) {
@@ -477,17 +480,17 @@ cat(
                     break;
                 } else {
                     *bpout++ = '^';
-                    *bpout++ = ch + 64;
+                    *bpout++ = ch + 64;//@:64,A:65~なので、0-31の範囲の制御文字を対応する64-95の範囲の大文字アルファベットといくつかの記号にマッピングするためのテクニック
                 }
 
                 ch = *bpin++;
             }
         } else {
-            /* Not quoting, neither of -v, -e, or -t specified.  */
+            /* -v, -e, -tのいずれも指定されておらず、引用されていない。 */
             while (true) {
                 if (ch == '\t' && show_tabs) {
                     *bpout++ = '^';
-                    *bpout++ = ch + 64;
+                    *bpout++ = ch + 64;//&\t':9 I:73
                 } else if (ch != '\n')
                     *bpout++ = ch;
                 else {
