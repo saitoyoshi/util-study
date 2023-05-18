@@ -546,6 +546,8 @@ main (int argc, char **argv)
     {"show-ends", no_argument, NULL, 'E'},
     {"show-tabs", no_argument, NULL, 'T'},
     {"show-all", no_argument, NULL, 'A'},
+    {"help", no_argument, NULL, 'H'},
+    {"version", no_argument, NULL, 'V'},
     {NULL, 0, NULL, 0}
   };
 
@@ -553,11 +555,18 @@ main (int argc, char **argv)
 
   /* Parse command line options.  */
 
-  while ((c = getopt_long (argc, argv, "benstuvAET", long_options, NULL))
+  while ((c = getopt_long (argc, argv, "benstuvAETVH", long_options, NULL))
          != -1)
     {
       switch (c)
         {
+        case 'H':
+          usage(0, argv[0]);
+          break;
+        case 'V':
+          puts("my cat version 1.0.0");
+          return EXIT_SUCCESS;
+          break;
         case 'b':
           number = true;
           number_nonblank = true;
