@@ -114,11 +114,24 @@ static bool simple_cat(char *buf, size_t bufsize) {
       }
     }
   }
-
+}
+static inline void write_pending(char *outbuf, char **bpout) {
+  size_t n_write = *bpout - outbuf;
+  if (0 < n_write) {
+    if (write(STDOUT_FILENO, outbuf, n_write) != n_write) {
+      fprintf(stderr, "write error in write_pending\n");
+    }
+    *bpout = outbuf;
+  }
 }
 int main(void) {
+  char str[] = "hello world!";
+  int n = sizeof(str) / sizeof(str[0]);
+  char *bpout = str + 3;
+  // printf("%d\n", n);
+  write_pending(str, &bpout);
   // usage(0, "cat");
-  char i[] = "hello world!";
-  bool b = simple_cat(i,1);
-  printf("%d\n", (int)b);
+  // char i[] = "hello world!";
+  // bool b = simple_cat(i,1);
+  // printf("%d\n", (int)b);
 }
