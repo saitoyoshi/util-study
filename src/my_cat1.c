@@ -14,7 +14,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <fcntl.h>
 #define EXIT_SUCCESS 0
 # define DEV_BSIZE	512
