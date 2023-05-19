@@ -78,7 +78,7 @@ void
 usage (int status, char *program_name)
 {
   if (status != EXIT_SUCCESS)
-    puts("i want to call emt_try_help()");
+    puts("i want to call emit_try_help()");
   else
     {
       printf ("\
@@ -138,7 +138,7 @@ next_line_num (void)
 /* Plain cat.  Copies the file behind 'input_desc' to STDOUT_FILENO.
    Return true if successful.  */
 void err(void) {
-  fprintf(stderr, "file %s line %d\n", __FILE__, __LINE__);
+  fprintf(stderr, "invoke err() file %s line %d\n", __FILE__, __LINE__);
 }
 static bool
 simple_cat (
@@ -161,8 +161,7 @@ simple_cat (
       n_read = read (input_desc, buf, bufsize);
       if (n_read == -1)
         {
-          err();
-          // fprintf(stderr, "file %s line %d\n", __FILE__, __LINE__);
+          fprintf(stderr, "read error line: %d\n", __LINE__);
           return false;
         }
 
@@ -177,7 +176,7 @@ simple_cat (
         /* The following is ok, since we know that 0 < n_read.  */
         size_t n = n_read;
         if (write (STDOUT_FILENO, buf, n) != n)
-          err();
+          fprintf(stderr, "write error line:%d\n", __LINE__);
       }
     }
 }
@@ -193,7 +192,7 @@ write_pending (char *outbuf, char **bpout)
   if (0 < n_write)
     {
       if (write (STDOUT_FILENO, outbuf, n_write) != n_write)
-        err();
+        fprintf(stderr, "write error line: %d\n", __LINE__);
       *bpout = outbuf;
     }
 }
@@ -250,11 +249,6 @@ cat (
      NEWLINES.  */
   int newlines = newlines2;
 
-#ifdef FIONREAD
-  /* If nonzero, use the FIONREAD ioctl, as an optimization.
-     (On Ultrix, it is not supported on NFS file systems.)  */
-  bool use_fionread = true;
-#endif
 
   /* The inbuf pointers are initialized so that BPIN > EOB, and thereby input
      is read immediately.  */
@@ -277,7 +271,7 @@ cat (
               do
                 {
                   if (write (STDOUT_FILENO, wp, outsize) != outsize)
-                    err();
+                    fprintf(stderr, "write error line %d\n", __LINE__);
                   wp += outsize;
                   remaining_bytes = bpout - wp;
                 }
@@ -295,36 +289,6 @@ cat (
           if (bpin > eob)
             {
               bool input_pending = false;
-#ifdef FIONREAD
-              int n_to_read = 0;
-
-              /* Is there any input to read immediately?
-                 If not, we are about to wait,
-                 so write all buffered output before waiting.  */
-
-              if (use_fionread
-                  && ioctl (input_desc, FIONREAD, &n_to_read) < 0)
-                {
-                  /* Ultrix returns EOPNOTSUPP on NFS;
-                     HP-UX returns ENOTTY on pipes.
-                     SunOS returns EINVAL and
-                     More/BSD returns ENODEV on special files
-                     like /dev/null.
-                     Irix-5 returns ENOSYS on pipes.  */
-                  if (errno == EOPNOTSUPP || errno == ENOTTY
-                      || errno == EINVAL || errno == ENODEV
-                      || errno == ENOSYS)
-                    use_fionread = false;
-                  else
-                    {
-                      err();
-                      newlines2 = newlines;
-                      return false;
-                    }
-                }
-              if (n_to_read != 0)
-                input_pending = true;
-#endif
 
               if (!input_pending)
                 write_pending (outbuf, &bpout);
@@ -490,7 +454,8 @@ err();
         }
     }
 }
-
+// todoエラーのないようで、エラーメッセージを変える。
+// fstatのあたりを解説を受ける
 int
 main (int argc, char **argv)
 {
@@ -612,10 +577,6 @@ main (int argc, char **argv)
           show_tabs = true;
           break;
 
-        // case_GETOPT_HELP_CHAR;
-
-        // case_GETOPT_VERSION_CHAR (PROGRAM_NAME, AUTHORS);
-
         default:
           usage (EXIT_FAILURE, argv[0]);
         }
@@ -623,19 +584,19 @@ main (int argc, char **argv)
 
   /* Get device, i-node number, and optimal blocksize of output.  */
 
-  if (fstat (STDOUT_FILENO, &stat_buf) < 0)
-    err();
+  // if (fstat (STDOUT_FILENO, &stat_buf) < 0)
+  //   err();
 
-  outsize = io_blksize (stat_buf);
-  out_dev = stat_buf.st_dev;
-  out_ino = stat_buf.st_ino;
-  out_isreg = S_ISREG (stat_buf.st_mode) != 0;
+  // outsize = io_blksize (stat_buf);
+  // out_dev = stat_buf.st_dev;
+  // out_ino = stat_buf.st_ino;
+  // out_isreg = S_ISREG (stat_buf.st_mode) != 0;
 
-  if (! (number || show_ends || squeeze_blank))
-    {
+  // if (! (number || show_ends || squeeze_blank))
+  //   {
       // file_open_mode |= O_BINARY;
       // xset_binary_mode (STDOUT_FILENO, O_BINARY);
-    }
+    // }
 
   /* Check if any of the input files are the same as the output file.  */
 
@@ -661,7 +622,7 @@ main (int argc, char **argv)
           input_desc = open (infile, file_open_mode);
           if (input_desc < 0)
             {
-              err();
+              fprintf(stderr, "open error line:%d\n", __LINE__);
               ok = false;
               continue;
             }
@@ -669,7 +630,7 @@ main (int argc, char **argv)
 
       if (fstat (input_desc, &stat_buf) < 0)
         {
-          err();
+          fprintf(stderr, "fstat error line:%d\n", __LINE__);
           ok = false;
           goto contin;
         }
@@ -679,14 +640,14 @@ main (int argc, char **argv)
          merely exhaust the output device.  It's better to catch this
          error earlier rather than later.  */
 
-      if (out_isreg
-          && stat_buf.st_dev == out_dev && stat_buf.st_ino == out_ino
-          && lseek (input_desc, 0, SEEK_CUR) < stat_buf.st_size)
-        {
-          err();
-          ok = false;
-          goto contin;
-        }
+      // if (out_isreg
+      //     && stat_buf.st_dev == out_dev && stat_buf.st_ino == out_ino
+      //     && lseek (input_desc, 0, SEEK_CUR) < stat_buf.st_size)
+      //   {
+      //     err();
+      //     ok = false;
+      //     goto contin;
+      //   }
 
       /* Select which version of 'cat' to use.  If any format-oriented
          options were given use 'cat'; otherwise use 'simple_cat'.  */
@@ -741,14 +702,14 @@ main (int argc, char **argv)
     contin:
       if (!STREQ (infile, "-") && close (input_desc) < 0)
         {
-          err();
+          fprintf(stderr, "close error line: %d\n", __LINE__);
           ok = false;
         }
     }
   while (++argind < argc);
 
   if (have_read_stdin && close (STDIN_FILENO) < 0)
-    err();
+    fprintf(stderr, "could'nt close stdin line:%d\n", __LINE__);
 
   return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
