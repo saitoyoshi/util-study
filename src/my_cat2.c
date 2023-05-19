@@ -124,12 +124,162 @@ static inline void write_pending(char *outbuf, char **bpout) {
     *bpout = outbuf;
   }
 }
-int main(void) {
-  char str[] = "hello world!";
-  int n = sizeof(str) / sizeof(str[0]);
-  char *bpout = str + 3;
+static bool cat(char *inbuf, size_t insize, char *outbuf, size_t outsize, bool show_nonprinting, bool show_tabs, bool number, bool number_nonblank, bool show_ends, bool squeeze_blank) {
+  /* このコードでは、テキストファイルのデータをバッファを通じて読み込み、一部の処理を行ってから出力する機能が実装されています。各変数の目的は以下の通りです。
+
+- `inbuf`と`outbuf`は、それぞれ入力データと出力データを格納するためのバッファ（大きな文字列の配列）を指すポインタです。`inbuf`はファイルから読み込んだデータを保持し、`outbuf`は処理後のデータを保持します。
+
+- `bpin`と`bpout`は、それぞれ`inbuf`と`outbuf`内で現在処理している位置を指すポインタです。`bpin`は読み込みの現在位置を示し、`bpout`は書き込みの現在位置を示します。
+
+- `eob`（End Of Buffer）は、入力バッファの終端を指すポインタです。これは新たなデータを読み込むかどうかを判断するために使用されます。
+
+- `newlines`は、読み込んだデータ内の改行数をカウントするための変数です。
+
+それぞれの役割を理解するためには、この`cat`関数の全体的な動作を把握することが重要です。基本的には、ファイルからデータを読み込んで（`inbuf`に格納して）から、それを一定の処理を行って（行番号をつける、タブを表示するなど）、出力バッファ`outbuf`に格納し、最終的にそのバッファの内容を出力します。その間、`bpin`と`bpout`はそれぞれ読み込みと書き込みの進行度を追跡するために使用されます。*/
+  unsigned char ch;
+  char *bpin;
+  char *eob;
+  char *bpout;
+  size_t n_read;
+  int newlines = newlines2;
+
+  eob = inbuf;
+  bpin = eob + 1;
+  bpout = outbuf;
+
+  while (true) {
+    do {
+      if (outbuf + outsize <= bpout) {
+        // 出力バッファがいっぱいならば
+        char *wp = outbuf;
+        size_t remaining_bytes;
+        do {
+          if (write(STDOUT_FILENO, wp, outsize) != outsize) {
+            fprintf(stderr, "write error in cat()\n");
+          }
+          wp += outsize;
+          remaining_bytes = bpout - wp;
+        } while (outsize <= remaining_bytes);
+        memmove(outbuf, wp, remaining_bytes);
+        bpout = outbuf + remaining_bytes;
+      }
+      if (bpin > eob) {
+        // 入力バッファが空
+        bool input_pending = false;
+        if (!input_pending) {
+          write_pending(outbuf, &bpout);
+        }
+        n_read = read(input_desc, inbuf, insize);
+        if (n_read == -1) {
+          write_pending(outbuf, &bpout);
+          newlines2 = newlines;
+          return false;
+        }
+        if (n_read == 0) {
+          write_pending(outbuf, &bpout);
+          newlines2 = newlines;
+          return true;
+        }
+        bpin = inbuf;
+        eob = bpin + n_read;
+        *eob = '\n';
+      } else {
+        if (++newlines > 0) {
+          if (newlines >= 2) {
+            newlines = 2;
+            if (squeeze_blank) {
+              ch = *bpin++;
+              continue;
+            }
+          }
+          if (number && !number_nonblank) {
+            next_line_num();
+            bpout = stpcpy(bpout, line_num_print);
+          }
+        }
+        if (show_ends) {
+          *bpout++ = '$';
+        }
+        *bpout++ = '\n';
+      }
+      ch = *bpin++;
+    } while (ch == '\n');
+
+    if (newlines >= 0 && number) {
+      next_line_num();
+      bpout = stpcpy(bpout, line_num_print);
+    }
+
+    if (show_nonprinting) {
+      while (true) {
+        if (ch >= 32) {
+          if (ch < 127) {
+            *bpout++ = ch;
+          } else if (ch == 127) {
+            *bpout++ = '^';
+            *bpout++ = '?';
+          } else {
+            *bpout++ = 'M';
+            *bpout++ = '-';
+            if (ch >= 128 + 32) {
+              if (ch < 128 + 127) {
+                *bpout++ = ch - 128;
+              } else {
+                *bpout++ = '^';
+                *bpout++ = '?';
+              }
+            } else {
+              *bpout++ = '^';
+              *bpout++ = ch - 128 + 64;
+            }
+          }
+        } else if (ch == '\t' && !show_tabs) {
+          *bpout++ = '\t';
+        } else if (ch == '\n') {
+          newlines = -1;
+          break;
+        } else {
+          *bpout++ = '^';
+          *bpout++ = ch + 64;
+        }
+        ch = *bpin++;
+      }
+    } else {
+      while (true) {
+        if (ch == '\t' && show_tabs) {
+          *bpout++ = '^';
+          *bpout++ = ch + 64;
+        } else if (ch != '\n') {
+          *bpout++ = ch;
+        } else {
+          newlines = -1;
+          break;
+        }
+
+        ch = *bpin++;
+      }
+    }
+  }
+}
+int main(int argc, char *argv[]) {
+  // char inbuf[1024];
+  char inbuf[1024];
+  size_t insize = 64;
+  char outbuf[1024];
+  size_t outsize = 64;
+  bool show_nonprinting = false;
+  bool show_tabs = true;
+  bool number = true;
+  bool number_nonblank = true;
+  bool show_ends = true;
+  bool squeeze_blank = true;
+  input_desc = open(argv[1], O_RDONLY);
+  cat(inbuf,insize,outbuf,outsize,show_nonprinting,show_tabs,number,number_nonblank, show_ends, squeeze_blank);
+  // char str[] = "hello world!";
+  // int n = sizeof(str) / sizeof(str[0]);
+  // char *bpout = str + 3;
   // printf("%d\n", n);
-  write_pending(str, &bpout);
+  // write_pending(str, &bpout);
   // usage(0, "cat");
   // char i[] = "hello world!";
   // bool b = simple_cat(i,1);
