@@ -78,6 +78,47 @@ void usage(int status, char *program_name) {
   }
 }
 
+static void next_line_num(void) {
+  char *endp = line_num_end;
+  do {
+    if ((*endp)++ < '9') {
+      return;
+    }
+    *endp-- = '0';
+  } while (endp >= line_num_start);
+  if (line_num_start > line_buf) {
+    *--line_num_start = '1';
+  } else {
+    *line_buf = '>';
+  }
+  if (line_num_start < line_num_print) {
+    line_num_print--;
+  }
+}
+static bool simple_cat(char *buf, size_t bufsize) {
+  size_t n_read;
+
+  while (true) {
+    n_read = read(input_desc, buf, bufsize);
+    if (n_read == -1) {
+      fprintf(stderr, "read error in simple_cat()\n");
+      return false;
+    }
+    if (n_read == 0) {
+      return true;
+    }
+    {
+      size_t n = n_read;
+      if (write(STDOUT_FILENO, buf, n) != n) {
+        fprintf(stderr, "write error in simple_cat()\n");
+      }
+    }
+  }
+
+}
 int main(void) {
-  usage(0, "cat");
+  // usage(0, "cat");
+  char i[] = "hello world!";
+  bool b = simple_cat(i,1);
+  printf("%d\n", (int)b);
 }
