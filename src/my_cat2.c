@@ -75,8 +75,8 @@ void usage(int status, char *program_name) {
     printf("\n\
     %s f - g fの内容を出力し、それから標準入力とgの内容を読む\n\
     %s 標準入力を標準出力にコピーする\n", program_name, program_name);
-    exit(status);
   }
+  exit(status);
 }
 
 static void next_line_num(void) {
@@ -296,6 +296,7 @@ int main(int argc, char *argv[]) {
   int c;
   int argind;
   bool have_read_stdin = false;
+  struct stat stat_buf;
   bool number = false;
   bool number_nonblank = false;
   bool squeeze_blank = false;
@@ -360,4 +361,57 @@ int main(int argc, char *argv[]) {
         usage(EXIT_FAILURE, argv[0]);
     }
   }
-}
+  if (fstat(STDOUT_FILENO, &stat_buf) < 0) {
+    fprintf(stderr, "fstat error in main\n");
+  }
+  outsize = io_blksize(stat_buf);
+  infile = "-";
+  argind = optind;
+
+  do {
+    if (argind < argc) {
+      infile = argv[argind];
+    }
+    if (STREQ(infile, "-")) {
+      have_read_stdin = true;
+      input_desc = STDIN_FILENO;
+    } else {
+      input_desc = open(infile, file_open_mode);
+      if (input_desc < 0) {
+        fprintf(stderr, "open error in main\n");
+        ok = false;
+        continue;
+      }
+    }
+    if (fstat(input_desc, &stat_buf) < 0) {
+      fprintf(stderr, "fstat error in main\n");
+      ok = false;
+      goto contin;
+    }
+    insize = io_blksize(stat_buf);
+    if (!(number || show_ends || show_nonprinting || show_tabs || squeeze_blank)) {
+      insize = MAX(insize, outsize);
+      inbuf = malloc(insize + page_size - 1);
+      ok &= simple_cat(ptr_align(inbuf, page_size), insize);
+    } else {
+      inbuf = malloc(insize + 1 + page_size - 1);
+      outbuf = malloc(outsize - 1 + insize * 4 + LINE_COUNTER_BUF_LEN + page_size - 1);
+      ok &= cat(ptr_align(inbuf, page_size), insize,
+      ptr_align(outbuf, page_size), outsize, show_nonprinting, show_tabs, number, number_nonblank, show_ends, squeeze_blank);
+      free(outbuf);
+    }
+    free(inbuf);
+
+    contin:
+      if (!STREQ(infile, "-") && close(input_desc) < 0) {
+        fprintf(stderr, "close error in main\n");
+        ok = false;
+      }
+    } while (++argind < argc);
+
+    if (have_read_stdin && close(STDIN_FILENO) < 0) {
+      fprintf(stderr, "close error stdin in main\n");
+    }
+
+    return ok ? EXIT_SUCCESS : EXIT_FAILURE;
+  }
