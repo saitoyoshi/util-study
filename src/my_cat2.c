@@ -52,6 +52,7 @@ static inline void *ptr_align(void const *ptr, size_t alignment) {
 void usage(int status, char *program_name) {
   if (status != EXIT_SUCCESS) {
     puts("emit_try_help()");
+    puts("詳しくは 'cat --help' を実行して下さい。");
   } else {
     printf("\
     Usage: %s [option]... [file]... \n",
@@ -263,18 +264,18 @@ static bool cat(char *inbuf, size_t insize, char *outbuf, size_t outsize, bool s
 }
 int main(int argc, char *argv[]) {
   // char inbuf[1024];
-  char inbuf[1024];
-  size_t insize = 64;
-  char outbuf[1024];
-  size_t outsize = 64;
-  bool show_nonprinting = false;
-  bool show_tabs = true;
-  bool number = true;
-  bool number_nonblank = true;
-  bool show_ends = true;
-  bool squeeze_blank = true;
-  input_desc = open(argv[1], O_RDONLY);
-  cat(inbuf,insize,outbuf,outsize,show_nonprinting,show_tabs,number,number_nonblank, show_ends, squeeze_blank);
+  // char inbuf[32];
+  // size_t insize = 64;
+  // char outbuf[2048];
+  // size_t outsize = 64;
+  // bool show_nonprinting = false;
+  // bool show_tabs = true;
+  // bool number = true;
+  // bool number_nonblank = true;
+  // bool show_ends = true;
+  // bool squeeze_blank = true;
+  // input_desc = open(argv[1], O_RDONLY);
+  // cat(inbuf,insize,outbuf,outsize,show_nonprinting,show_tabs,number,number_nonblank, show_ends, squeeze_blank);
   // char str[] = "hello world!";
   // int n = sizeof(str) / sizeof(str[0]);
   // char *bpout = str + 3;
@@ -284,4 +285,79 @@ int main(int argc, char *argv[]) {
   // char i[] = "hello world!";
   // bool b = simple_cat(i,1);
   // printf("%d\n", (int)b);
+
+
+  size_t outsize;
+  size_t insize;
+  size_t page_size = getpagesize();
+  char *inbuf;
+  char *outbuf;
+  bool ok = true;
+  int c;
+  int argind;
+  bool have_read_stdin = false;
+  bool number = false;
+  bool number_nonblank = false;
+  bool squeeze_blank = false;
+  bool show_ends = false;
+  bool show_nonprinting = false;
+  bool show_tabs = false;
+  int file_open_mode = O_RDONLY;
+
+  static struct option const long_options[] = {
+    {"number-nonblank", no_argument, NULL, 'b'},
+    {"number", no_argument, NULL, 'n'},
+    {"squeeze_blank", no_argument, NULL, 's'},
+    {"show_nonprinting", no_argument, NULL, 'v'},
+    {"show_ends", no_argument, NULL, 'E'},
+    {"show_tabs", no_argument, NULL, 'T'},
+    {"show-all", no_argument, NULL, 'A'},
+    {"help", no_argument, NULL, 'H'},
+    {"version", no_argument, NULL, 'V'},
+    {NULL, 0, NULL, 0}
+  };
+
+  while ((c = getopt_long(argc, argv, "benstuvAETVH", long_options, NULL)) != -1) {
+    switch (c) {
+      case 'H':
+        usage(EXIT_SUCCESS, argv[0]);break;
+      case 'V':
+        puts("my cat version 1.0.0");
+        return EXIT_SUCCESS;
+        break;
+      case 'b':
+        number = true;
+        number_nonblank = true;
+        break;
+      case 'e':
+        show_ends = true;
+        show_nonprinting = true;
+        break;
+      case 'n':
+        number = true;
+        break;
+      case 's':
+        squeeze_blank = true;
+        break;
+      case 't':
+        show_tabs = true;
+        show_nonprinting = true;
+        break;
+      case 'u': break;
+      case 'v':
+        show_nonprinting = true;
+        break;
+      case 'A':
+        show_nonprinting = true;
+        show_ends = true;
+        show_tabs = true;
+        break;
+      case 'E':
+        show_ends = true; break;
+      case 'T':
+        show_tabs = true; break;
+      default:
+        usage(EXIT_FAILURE, argv[0]);
+    }
+  }
 }
